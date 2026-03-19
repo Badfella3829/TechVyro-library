@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { Toaster } from "@/components/ui/sonner"
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'PDF Library - Browse, Download & Share PDFs',
+  description: 'A modern PDF library where you can browse, view, download, and share PDF documents organized by categories.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         {children}
+        <Toaster richColors position="top-right" />
         <Analytics />
       </body>
     </html>
