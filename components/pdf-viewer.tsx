@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Download, Share2, FileText, Calendar, Eye, Check, Copy } from "lucide-react"
+import { ArrowLeft, Download, Share2, FileText, Calendar, Eye, Check, Maximize2, Minimize2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,8 +32,32 @@ export function PDFViewer({ pdf }: PDFViewerProps) {
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [viewCount, setViewCount] = useState(pdf.view_count || 0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const pdfUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pdfs/${pdf.file_path}`
+
+  // Close fullscreen on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isFullscreen) {
+        setIsFullscreen(false)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isFullscreen])
+
+  // Prevent body scroll when fullscreen is open
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [isFullscreen])
 
   // Track view on component mount
   useEffect(() => {
@@ -177,9 +201,20 @@ export function PDFViewer({ pdf }: PDFViewerProps) {
         {/* PDF Preview */}
         <Card className="lg:col-span-2 border-border/50 overflow-hidden">
           <CardContent className="p-0">
-            <div className="bg-muted/30 px-4 py-2 border-b border-border/50 flex items-center gap-2">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Preview</span>
+            <div className="bg-muted/30 px-4 py-2 border-b border-border/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Preview</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFullscreen(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Maximize2 className="h-4 w-4 mr-2" />
+                Fullscreen
+              </Button>
             </div>
             <div className="aspect-[3/4] lg:aspect-[4/5] w-full">
               <iframe
@@ -191,6 +226,58 @@ export function PDFViewer({ pdf }: PDFViewerProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold text-foreground truncate max-w-md">
+                {pdf.title}
+              </h2>
+              {pdf.category && (
+                <Badge
+                  style={{
+                    backgroundColor: pdf.category.color,
+                    color: "#fff",
+                  }}
+                >
+                  {pdf.category.name}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+                disabled={downloading}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloading ? "Downloading..." : "Download"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsFullscreen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* PDF Viewer */}
+          <div className="h-[calc(100vh-57px)] w-full">
+            <iframe
+              src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+              className="w-full h-full border-0"
+              title={`${pdf.title} - Fullscreen`}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
