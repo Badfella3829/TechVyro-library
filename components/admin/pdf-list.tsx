@@ -1,10 +1,13 @@
 "use client"
 
-import { Trash2, Download, ExternalLink, FileText } from "lucide-react"
+import { useState } from "react"
+import { Trash2, ExternalLink, FileText, Pencil, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Empty } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import type { PDF, Category } from "@/lib/types"
 
@@ -13,6 +16,7 @@ interface PDFListProps {
   categories: Category[]
   loading: boolean
   onDelete: () => void
+  onUpdate: () => void
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -30,19 +34,73 @@ function formatDate(dateString: string): string {
   })
 }
 
-export function PDFList({ pdfs, categories, loading, onDelete }: PDFListProps) {
-  async function handleDelete(id: string, title: string) {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) {
+interface EditState {
+  title: string
+  category_id: string
+}
+
+export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editState, setEditState] = useState<EditState>({ title: "", category_id: "" })
+  const [saving, setSaving] = useState(false)
+
+  function startEdit(pdf: PDF) {
+    setEditingId(pdf.id)
+    setEditState({
+      title: pdf.title,
+      category_id: pdf.category_id || "none",
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditState({ title: "", category_id: "" })
+  }
+
+  async function saveEdit(id: string) {
+    if (!editState.title.trim()) {
+      toast.error("Title cannot be empty")
       return
     }
+
+    setSaving(true)
+    try {
+      const token = sessionStorage.getItem("admin_token")
+      const response = await fetch(`/api/pdfs/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: editState.title.trim(),
+          category_id: editState.category_id === "none" ? null : editState.category_id,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to update PDF")
+      }
+
+      toast.success("PDF updated!")
+      setEditingId(null)
+      onUpdate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update PDF")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(id: string, title: string) {
+    if (!confirm(`Are you sure you want to delete "${title}"?`)) return
 
     try {
       const token = sessionStorage.getItem("admin_token")
       const response = await fetch(`/api/pdfs/${id}`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+        headers: { "Authorization": `Bearer ${token}` },
       })
 
       if (!response.ok) {
@@ -53,7 +111,6 @@ export function PDFList({ pdfs, categories, loading, onDelete }: PDFListProps) {
       toast.success("PDF deleted successfully!")
       onDelete()
     } catch (error) {
-      console.error("[v0] Delete PDF error:", error)
       toast.error(error instanceof Error ? error.message : "Failed to delete PDF")
     }
   }
@@ -89,58 +146,115 @@ export function PDFList({ pdfs, categories, loading, onDelete }: PDFListProps) {
     <div className="space-y-3">
       {pdfs.map((pdf) => {
         const category = categories.find((c) => c.id === pdf.category_id)
-        
+        const isEditing = editingId === pdf.id
+
         return (
           <div
             key={pdf.id}
-            className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-accent/10">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-accent/10">
               <FileText className="h-6 w-6 text-primary/60" />
             </div>
-            
+
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-medium truncate">{pdf.title}</h3>
-                {category && (
-                  <Badge
-                    className="text-xs"
-                    style={{
-                      backgroundColor: category.color,
-                      color: "#fff",
+              {isEditing ? (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    value={editState.title}
+                    onChange={(e) => setEditState((s) => ({ ...s, title: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveEdit(pdf.id)
+                      if (e.key === "Escape") cancelEdit()
                     }}
+                    className="h-8 text-sm font-medium"
+                    autoFocus
+                    disabled={saving}
+                  />
+                  <Select
+                    value={editState.category_id}
+                    onValueChange={(v) => setEditState((s) => ({ ...s, category_id: v }))}
+                    disabled={saving}
                   >
-                    {category.name}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <span>{formatFileSize(pdf.file_size)}</span>
-                <span>•</span>
-                <span>{formatDate(pdf.created_at)}</span>
-                <span>•</span>
-                <span>{pdf.download_count} downloads</span>
-              </div>
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No category</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium truncate">{pdf.title}</h3>
+                    {category && (
+                      <Badge
+                        className="text-xs shrink-0"
+                        style={{ backgroundColor: category.color, color: "#fff" }}
+                      >
+                        {category.name}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <span>{formatFileSize(pdf.file_size)}</span>
+                    <span>•</span>
+                    <span>{formatDate(pdf.created_at)}</span>
+                    <span>•</span>
+                    <span>{pdf.download_count} downloads</span>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-              >
-                <a href={`/pdf/${pdf.id}`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => handleDelete(pdf.id, pdf.title)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={() => saveEdit(pdf.id)}
+                    disabled={saving}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={cancelEdit}
+                    disabled={saving}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" size="icon" onClick={() => startEdit(pdf)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" asChild>
+                    <a href={`/pdf/${pdf.id}`} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDelete(pdf.id, pdf.title)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )

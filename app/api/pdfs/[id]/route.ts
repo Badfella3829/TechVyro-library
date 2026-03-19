@@ -5,31 +5,67 @@ interface RouteProps {
   params: Promise<{ id: string }>
 }
 
-export async function DELETE(request: Request, { params }: RouteProps) {
+function verifyToken(request: Request): boolean {
+  const authHeader = request.headers.get("Authorization")
+  const token = authHeader?.replace("Bearer ", "")
+  if (!token) return false
+  const adminPassword = process.env.ADMIN_PASSWORD
+  if (!adminPassword) return false
   try {
-    const { id } = await params
-    
-    // Verify admin token
-    const authHeader = request.headers.get("Authorization")
-    const token = authHeader?.replace("Bearer ", "")
-    
-    if (!token) {
+    const decoded = Buffer.from(token, "base64").toString("utf-8")
+    const [storedPassword] = decoded.split(":")
+    return storedPassword === adminPassword
+  } catch {
+    return false
+  }
+}
+
+export async function PATCH(request: Request, { params }: RouteProps) {
+  try {
+    if (!verifyToken(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const adminPassword = process.env.ADMIN_PASSWORD
-    if (!adminPassword) {
-      return NextResponse.json({ error: "Admin not configured" }, { status: 500 })
+    const { id } = await params
+    const body = await request.json()
+    const { title, description, category_id } = body
+
+    if (!title?.trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
-    try {
-      const decoded = Buffer.from(token, "base64").toString("utf-8")
-      const [storedPassword] = decoded.split(":")
-      if (storedPassword !== adminPassword) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      }
-    } catch {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    const supabase = createAdminClient()
+
+    const { data, error } = await supabase
+      .from("pdfs")
+      .update({
+        title: title.trim(),
+        description: description?.trim() || null,
+        category_id: category_id || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] PDF update error:", error)
+      return NextResponse.json({ error: "Failed to update PDF" }, { status: 500 })
+    }
+
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("[v0] PDF PATCH error:", error)
+    return NextResponse.json({ error: "An error occurred" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request, { params }: RouteProps) {
+  try {
+    const { id } = await params
+
+    if (!verifyToken(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = createAdminClient()
