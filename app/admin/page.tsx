@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { ArrowLeft, Plus, Upload, FolderPlus, Trash2, FileText, LogOut, BarChart3, RefreshCw, Settings, Database, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Upload, FolderPlus, Trash2, FileText, LogOut, BarChart3, RefreshCw, Settings, Database, Loader2, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,6 +27,10 @@ const PDFList = dynamic(() => import("@/components/admin/pdf-list").then(mod => 
 
 const AnalyticsDashboard = dynamic(() => import("@/components/admin/analytics-dashboard").then(mod => ({ default: mod.AnalyticsDashboard })), {
   loading: () => <ComponentLoader text="Loading analytics..." />,
+})
+
+const ReviewsManager = dynamic(() => import("@/components/admin/reviews-manager").then(mod => ({ default: mod.ReviewsManager })), {
+  loading: () => <ComponentLoader text="Loading reviews..." />,
 })
 
 function ComponentLoader({ text }: { text: string }) {
@@ -111,34 +115,52 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
+        {/* Gradient line at top */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        
         <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4">
           <div className="flex items-center gap-2 sm:gap-4">
             <Link 
               href="/" 
-              className="flex items-center gap-1 sm:gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+              </div>
               <span className="hidden sm:inline">Back to Library</span>
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div className="absolute -inset-1 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 blur opacity-50" />
+              <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg">
+                <Settings className="h-5 w-5 text-primary-foreground" />
+              </div>
             </div>
-            <span className="font-semibold text-sm sm:text-base">Admin Dashboard</span>
+            <div className="hidden sm:block">
+              <span className="font-bold text-base">Admin Dashboard</span>
+              <p className="text-[10px] text-muted-foreground -mt-0.5">TechVyro Library</p>
+            </div>
+            <span className="sm:hidden font-semibold text-sm">Admin</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="sm" 
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-2 sm:px-3"
+              className="px-2 sm:px-3 h-9 hover:bg-primary/5 hover:border-primary/50"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline ml-2">Refresh</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="px-2 sm:px-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLogout} 
+              className="px-2 sm:px-3 h-9 hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
+            >
               <LogOut className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Logout</span>
             </Button>
@@ -146,83 +168,95 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        {/* Quick Stats Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <Card className="border-border/50">
-            <CardContent className="p-3 sm:p-4">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-10">
+        {/* Quick Stats Bar - Enhanced */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
+          <Card className="group border-border/50 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total PDFs</p>
-                  <p className="text-xl sm:text-2xl font-bold">{pdfs.length}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Total PDFs</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{pdfs.length}</p>
                 </div>
-                <FileText className="h-8 w-8 text-primary/30" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 group-hover:scale-110 transition-transform duration-300">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-3 sm:p-4">
+          <Card className="group border-border/50 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 transition-all duration-300">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Categories</p>
-                  <p className="text-xl sm:text-2xl font-bold">{categories.length}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Categories</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{categories.length}</p>
                 </div>
-                <FolderPlus className="h-8 w-8 text-accent/30" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 group-hover:scale-110 transition-transform duration-300">
+                  <FolderPlus className="h-6 w-6 text-accent" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-3 sm:p-4">
+          <Card className="group border-border/50 hover:border-green-500/40 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Views</p>
-                  <p className="text-xl sm:text-2xl font-bold">{totalViews.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Total Views</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{totalViews.toLocaleString()}</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-green-500/30" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500/20 to-green-500/10 group-hover:scale-110 transition-transform duration-300">
+                  <BarChart3 className="h-6 w-6 text-green-500" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50">
-            <CardContent className="p-3 sm:p-4">
+          <Card className="group border-border/50 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Storage Used</p>
-                  <p className="text-xl sm:text-2xl font-bold">{formatBytes(totalStorage)}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Storage Used</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{formatBytes(totalStorage)}</p>
                 </div>
-                <Database className="h-8 w-8 text-blue-500/30" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 group-hover:scale-110 transition-transform duration-300">
+                  <Database className="h-6 w-6 text-blue-500" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="mb-4 sm:mb-8">
-          <h1 className="text-xl sm:text-3xl font-bold text-foreground">Manage Library</h1>
-          <p className="mt-1 sm:mt-2 text-sm sm:text-base text-muted-foreground">
-            Upload PDFs, manage categories, and view analytics
+        <div className="mb-6 sm:mb-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage Library</h1>
+          <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-muted-foreground">
+            Upload PDFs, manage categories, view analytics, and moderate reviews
           </p>
         </div>
 
-        <Tabs defaultValue="upload" className="space-y-4 sm:space-y-6">
-          <TabsList className="flex flex-wrap h-auto gap-1 p-1 bg-muted/50">
-            <TabsTrigger value="upload" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 data-[state=active]:bg-background">
+        <Tabs defaultValue="upload" className="space-y-5 sm:space-y-8">
+          <TabsList className="flex flex-wrap h-auto gap-1.5 p-1.5 bg-muted/50 rounded-xl">
+            <TabsTrigger value="upload" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
               <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Upload</span>
             </TabsTrigger>
-            <TabsTrigger value="pdfs" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 data-[state=active]:bg-background">
+            <TabsTrigger value="pdfs" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>PDFs</span>
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary/10 text-primary">
                 {pdfs.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 data-[state=active]:bg-background">
+            <TabsTrigger value="categories" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
               <FolderPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Categories</span>
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-accent/10 text-accent">
                 {categories.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 data-[state=active]:bg-background">
+            <TabsTrigger value="reviews" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
+              <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Reviews</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
               <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Analytics</span>
             </TabsTrigger>
@@ -287,6 +321,23 @@ export default function AdminPage() {
                   categories={categories}
                   onChange={handleCategoryChange}
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  Manage Reviews
+                </CardTitle>
+                <CardDescription>
+                  View, filter, and moderate user reviews. Delete inappropriate or spam reviews.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ReviewsManager pdfs={pdfs} categories={categories} />
               </CardContent>
             </Card>
           </TabsContent>

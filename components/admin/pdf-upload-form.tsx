@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
-import { Upload, FileText, X, CheckCircle, Loader2, AlertCircle, AlertTriangle } from "lucide-react"
+import { Upload, FileText, X, CheckCircle, Loader2, AlertCircle, AlertTriangle, Zap, Files, FolderPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import type { Category } from "@/lib/types"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB in bytes
-const MAX_PARALLEL_UPLOADS = 5 // Maximum concurrent uploads
+const MAX_PARALLEL_UPLOADS = 8 // Increased for faster parallel upload
 
 interface FileEntry {
   id: string
@@ -261,13 +261,13 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
   const pendingCount = entries.filter((e) => e.status === "pending").length
 
   return (
-    <div className="space-y-4">
-      {/* Drop Zone */}
+    <div className="space-y-5">
+      {/* Drop Zone - Enhanced */}
       <div
-        className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+        className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 cursor-pointer group ${
           dragActive
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/50"
+            ? "border-primary bg-primary/10 scale-[1.02]"
+            : "border-border hover:border-primary/50 hover:bg-muted/30"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -275,6 +275,9 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
+        {/* Background pattern */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,80,200,0.05),transparent_70%)] rounded-2xl pointer-events-none" />
+        
         <input
           ref={fileInputRef}
           type="file"
@@ -283,28 +286,51 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
           onChange={handleFileChange}
           className="hidden"
         />
-        <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-        <p className="font-medium text-foreground">Drop PDFs here or click to select</p>
-        <p className="text-sm text-muted-foreground mt-1">Multiple files supported (max 50MB each) - parallel upload</p>
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-          <span className="text-xs text-amber-600">Files over 50MB will be rejected</span>
+        
+        <div className="relative">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+            <Upload className="h-8 w-8 text-primary" />
+          </div>
+          <p className="font-semibold text-lg text-foreground">Drop PDFs here or click to select</p>
+          <p className="text-sm text-muted-foreground mt-2">Multiple files supported (max 50MB each)</p>
+          
+          {/* Speed features */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+            <span className="inline-flex items-center gap-1.5 text-xs text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+              <Zap className="h-3 w-3" />
+              Fast Parallel Upload
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-green-600 bg-green-500/10 px-2.5 py-1 rounded-full">
+              <Files className="h-3 w-3" />
+              Up to 8 files at once
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-xs text-amber-600">Files over 50MB will be skipped</span>
+          </div>
         </div>
       </div>
 
-      {/* Global Category */}
+      {/* Global Category - Enhanced */}
       {entries.length > 0 && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Apply category to all:</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border/50">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+              <FolderPlus className="h-4 w-4 text-accent" />
+            </div>
+            <span className="text-sm font-medium text-foreground whitespace-nowrap">Apply to all:</span>
+          </div>
           <Select value={globalCategory} onValueChange={applyGlobalCategory}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Select a category" />
+            <SelectTrigger className="flex-1 h-10">
+              <SelectValue placeholder="Select a category for all files" />
             </SelectTrigger>
             <SelectContent>
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: cat.color }} />
                     {cat.name}
                   </span>
                 </SelectItem>
@@ -314,35 +340,46 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         </div>
       )}
 
-      {/* File List */}
+      {/* File List - Enhanced */}
       {entries.length > 0 && (
-        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+        <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1 scrollbar-thin">
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className={`flex items-center gap-3 p-3 rounded-lg border bg-card transition-colors ${
+              className={`flex items-center gap-3 p-3.5 rounded-xl border bg-card transition-all duration-300 ${
                 entry.status === "done"
-                  ? "border-green-500/40 bg-green-500/5"
+                  ? "border-green-500/50 bg-green-500/5 shadow-sm shadow-green-500/10"
                   : entry.status === "error"
-                  ? "border-destructive/40 bg-destructive/5"
+                  ? "border-destructive/50 bg-destructive/5"
                   : entry.status === "uploading"
-                  ? "border-primary/40 bg-primary/5"
-                  : "border-border"
+                  ? "border-primary/50 bg-primary/5 shadow-sm shadow-primary/10"
+                  : "border-border hover:border-primary/30"
               }`}
             >
-              {/* Status Icon */}
+              {/* Status Icon - Enhanced */}
               <div className="shrink-0">
                 {entry.status === "uploading" && (
-                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />
+                    <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
+                      <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                    </div>
+                  </div>
                 )}
                 {entry.status === "done" && (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/20">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  </div>
                 )}
                 {entry.status === "error" && (
-                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/20">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                  </div>
                 )}
                 {entry.status === "pending" && (
-                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                  </div>
                 )}
               </div>
 
@@ -353,9 +390,9 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   onChange={(e) => updateEntry(entry.id, { title: e.target.value })}
                   placeholder="PDF title"
                   disabled={entry.status !== "pending"}
-                  className="h-8 text-sm"
+                  className="h-9 text-sm font-medium"
                 />
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1.5">
                   <p className="text-xs text-muted-foreground truncate flex-1">
                     {entry.file.name} &middot; {(entry.file.size / 1024 / 1024).toFixed(2)} MB
                     {entry.status === "error" && (
@@ -363,13 +400,13 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     )}
                   </p>
                   {entry.status === "uploading" && (
-                    <span className="text-xs font-medium text-primary shrink-0">
+                    <span className="text-xs font-bold text-primary shrink-0 bg-primary/10 px-2 py-0.5 rounded">
                       {entry.progress}%
                     </span>
                   )}
                 </div>
                 {entry.status === "uploading" && (
-                  <Progress value={entry.progress} className="h-1.5 mt-1.5" />
+                  <Progress value={entry.progress} className="h-2 mt-2" />
                 )}
               </div>
 
@@ -379,14 +416,14 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                 onValueChange={(v) => updateEntry(entry.id, { categoryId: v })}
                 disabled={entry.status !== "pending"}
               >
-                <SelectTrigger className="w-36 h-8 text-xs">
+                <SelectTrigger className="w-36 h-9 text-xs">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
                         {cat.name}
                       </span>
                     </SelectItem>
@@ -400,7 +437,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 h-8 w-8"
+                  className="shrink-0 h-9 w-9 hover:bg-destructive/10 hover:text-destructive transition-colors"
                   onClick={() => removeEntry(entry.id)}
                 >
                   <X className="h-4 w-4" />
@@ -411,20 +448,23 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         </div>
       )}
 
-      {/* Upload Button */}
+      {/* Upload Button - Enhanced */}
       {entries.length > 0 && (
         <Button
           onClick={handleUploadAll}
-          className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+          className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
           disabled={isUploading || pendingCount === 0}
         >
           {isUploading ? (
             <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Uploading...
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Uploading {entries.filter(e => e.status === "uploading").length} files...
             </span>
           ) : (
-            `Upload ${pendingCount} PDF${pendingCount !== 1 ? "s" : ""}`
+            <span className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Upload {pendingCount} PDF{pendingCount !== 1 ? "s" : ""} (Fast Mode)
+            </span>
           )}
         </Button>
       )}

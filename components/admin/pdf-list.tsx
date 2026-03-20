@@ -250,22 +250,24 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
   const allSelected = selectedIds.size === filteredPdfs.length && filteredPdfs.length > 0
 
   return (
-    <div className="space-y-4">
-      {/* Search and Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <div className="space-y-5">
+      {/* Search and Filter Bar - Enhanced */}
+      <div className="flex flex-col sm:flex-row gap-3 p-4 rounded-xl bg-muted/30 border border-border/50">
+        <div className="relative flex-1 group">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 group-focus-within:bg-primary/20 transition-colors">
+            <Search className="h-4 w-4 text-primary" />
+          </div>
           <Input
-            placeholder="Search PDFs..."
+            placeholder="Search PDFs by title..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-14 h-11"
           />
         </div>
         <div className="flex gap-2">
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[140px]">
-              <Filter className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-[160px] h-11">
+              <Filter className="h-4 w-4 mr-2 text-accent" />
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -274,7 +276,7 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
               {categories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
                     {cat.name}
                   </span>
                 </SelectItem>
@@ -282,65 +284,76 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-            <SelectTrigger className="w-[130px]">
+            <SelectTrigger className="w-[140px] h-11">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
               <SelectItem value="name">Name A-Z</SelectItem>
-              <SelectItem value="downloads">Downloads</SelectItem>
-              <SelectItem value="views">Views</SelectItem>
+              <SelectItem value="downloads">Most Downloads</SelectItem>
+              <SelectItem value="views">Most Views</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Results count */}
+      {/* Results count - Enhanced */}
       {(searchQuery || filterCategory !== "all") && (
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredPdfs.length} of {pdfs.length} PDFs
-          {searchQuery && ` matching "${searchQuery}"`}
-        </p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+          <span className="font-medium text-foreground">{filteredPdfs.length}</span>
+          <span>of {pdfs.length} PDFs</span>
+          {searchQuery && <span className="text-primary">matching "{searchQuery}"</span>}
+        </div>
       )}
 
-      {/* Bulk Actions Bar */}
-      <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
-        <div className="flex items-center gap-3">
+      {/* Bulk Actions Bar - Enhanced */}
+      <div className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-300 ${
+        selectedIds.size > 0 
+          ? "bg-destructive/5 border-destructive/30" 
+          : "bg-muted/30 border-border/50"
+      }`}>
+        <div className="flex items-center gap-4">
           <Checkbox
             checked={allSelected}
             onCheckedChange={toggleSelectAll}
             aria-label="Select all PDFs"
+            className="h-5 w-5"
           />
-          <span className="text-sm text-muted-foreground">
-            {selectedIds.size > 0 
-              ? `${selectedIds.size} selected` 
-              : `${filteredPdfs.length} PDFs`}
-          </span>
+          <div>
+            <span className="text-sm font-medium text-foreground">
+              {selectedIds.size > 0 
+                ? `${selectedIds.size} PDFs selected` 
+                : `${filteredPdfs.length} PDFs total`}
+            </span>
+            {selectedIds.size > 0 && (
+              <p className="text-xs text-muted-foreground">Click delete to remove selected</p>
+            )}
+          </div>
         </div>
         {selectedIds.size > 0 && (
           <Button
             variant="destructive"
-            size="sm"
             onClick={handleBulkDelete}
             disabled={bulkDeleting}
+            className="gap-2 shadow-lg shadow-destructive/20"
           >
             {bulkDeleting ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Deleting...
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Deleting {selectedIds.size}...
               </>
             ) : (
               <>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete {selectedIds.size}
+                <Trash2 className="h-4 w-4" />
+                Delete {selectedIds.size} PDF{selectedIds.size > 1 ? "s" : ""}
               </>
             )}
           </Button>
         )}
       </div>
 
-      {/* PDF List */}
+      {/* PDF List - Enhanced */}
       {filteredPdfs.length === 0 ? (
         <Empty
           icon={Search}
@@ -348,7 +361,7 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
           description="Try adjusting your search or filters"
         />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredPdfs.map((pdf) => {
             const category = categories.find((c) => c.id === pdf.category_id)
             const isEditing = editingId === pdf.id
@@ -356,18 +369,24 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
             return (
               <div
                 key={pdf.id}
-                className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors ${
-                  selectedIds.has(pdf.id) ? "border-primary/50 bg-primary/5" : "border-border/50"
+                className={`flex items-center gap-3 sm:gap-4 p-4 rounded-xl border bg-card transition-all duration-200 ${
+                  selectedIds.has(pdf.id) 
+                    ? "border-primary/50 bg-primary/5 shadow-md shadow-primary/10" 
+                    : "border-border/50 hover:border-primary/30 hover:shadow-sm"
                 }`}
               >
                 <Checkbox
                   checked={selectedIds.has(pdf.id)}
                   onCheckedChange={() => toggleSelection(pdf.id)}
                   aria-label={`Select ${pdf.title}`}
-                  className="shrink-0"
+                  className="shrink-0 h-5 w-5"
                 />
-                <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-accent/10">
-                  <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary/60" />
+                <div className={`flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  selectedIds.has(pdf.id) 
+                    ? "bg-primary/20" 
+                    : "bg-gradient-to-br from-primary/10 to-accent/10"
+                }`}>
+                  <FileText className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                 </div>
 
                 <div className="flex-1 min-w-0">
