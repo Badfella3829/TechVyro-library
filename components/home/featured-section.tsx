@@ -130,8 +130,7 @@ export function FeaturedSection({ featured }: FeaturedSectionProps) {
                 }`}
               >
                 <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isActive ? tab.color : ""}`} />
-                <span className="hidden xs:inline sm:inline">{tab.label}</span>
-                <span className="xs:hidden">{tab.label.slice(0, 3)}</span>
+                {tab.label}
               </button>
             )
           })}
