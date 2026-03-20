@@ -1,18 +1,42 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import Link from "next/link"
-import { ArrowLeft, Plus, Upload, FolderPlus, Trash2, FileText, LogOut, BarChart3, RefreshCw, Settings, Database } from "lucide-react"
+import dynamic from "next/dynamic"
+import { ArrowLeft, Plus, Upload, FolderPlus, Trash2, FileText, LogOut, BarChart3, RefreshCw, Settings, Database, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { PDFUploadForm } from "@/components/admin/pdf-upload-form"
-import { CategoryManager } from "@/components/admin/category-manager"
-import { PDFList } from "@/components/admin/pdf-list"
-import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
+import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import type { Category, PDF } from "@/lib/types"
+
+// Dynamic imports for heavy components
+const PDFUploadForm = dynamic(() => import("@/components/admin/pdf-upload-form").then(mod => ({ default: mod.PDFUploadForm })), {
+  loading: () => <ComponentLoader text="Loading uploader..." />,
+})
+
+const CategoryManager = dynamic(() => import("@/components/admin/category-manager").then(mod => ({ default: mod.CategoryManager })), {
+  loading: () => <ComponentLoader text="Loading categories..." />,
+})
+
+const PDFList = dynamic(() => import("@/components/admin/pdf-list").then(mod => ({ default: mod.PDFList })), {
+  loading: () => <ComponentLoader text="Loading PDFs..." />,
+})
+
+const AnalyticsDashboard = dynamic(() => import("@/components/admin/analytics-dashboard").then(mod => ({ default: mod.AnalyticsDashboard })), {
+  loading: () => <ComponentLoader text="Loading analytics..." />,
+})
+
+function ComponentLoader({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+      <p className="text-sm text-muted-foreground">{text}</p>
+    </div>
+  )
+}
 
 export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([])
