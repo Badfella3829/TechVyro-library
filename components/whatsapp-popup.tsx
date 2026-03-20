@@ -28,7 +28,7 @@ export function WhatsAppPopup() {
         sessionStorage.setItem('whatsapp_popup_shown', 'true');
       }
       setTimeout(() => setIsAnimating(true), 50);
-    }, 1500);
+    }, 3000); // Increased delay to 3 seconds for better UX
     
     return () => clearTimeout(timer);
   }, []);
