@@ -123,3 +123,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Utility to hide scrollbar while maintaining scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent text overflow issues */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Ensure proper line breaks */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}

@@ -54,7 +54,7 @@ export default async function PDFDetailPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         <PDFViewer pdf={pdf} />
       </main>
     </div>
