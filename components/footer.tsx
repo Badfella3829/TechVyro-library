@@ -56,8 +56,8 @@ export function Footer() {
       {/* Background decoration */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(120,80,200,0.05),transparent)] pointer-events-none" />
       
-      <div className="container mx-auto px-4 py-12 sm:py-16 relative">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 sm:gap-12">
+      <div className="container mx-auto px-4 py-8 sm:py-12 lg:py-16 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 lg:gap-12">
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1 space-y-5">
             <Link href="/" className="inline-flex items-center gap-3 group">
@@ -183,17 +183,17 @@ export function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="mt-12 pt-8 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p className="flex items-center gap-2">
+        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+          <p className="flex flex-wrap items-center justify-center gap-1 sm:gap-2 text-center">
             <span>&copy; {new Date().getFullYear()}</span>
             <span className="font-semibold">
               <span className="text-[#ef4444]">Tech</span>
               <span className="text-foreground">Vyro</span>
             </span>
-            <span>All rights reserved.</span>
+            <span className="hidden sm:inline">All rights reserved.</span>
           </p>
-          <p className="flex items-center gap-2 text-xs">
-            <Heart className="h-3.5 w-3.5 text-[#ef4444] fill-[#ef4444]" />
+          <p className="flex items-center gap-2 text-[10px] sm:text-xs">
+            <Heart className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ef4444] fill-[#ef4444]" />
             Made with care for education
           </p>
         </div>

@@ -121,9 +121,9 @@ const statsConfig = [
 
 export function StatsSection({ stats }: StatsSectionProps) {
   return (
-    <section className="relative py-8 sm:py-12 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+    <section className="relative py-6 sm:py-8 md:py-12 bg-muted/30">
+      <div className="container mx-auto px-3 sm:px-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
           {statsConfig.map((stat, index) => {
             const Icon = stat.icon
             const value = stats[stat.key as keyof typeof stats]
@@ -131,20 +131,20 @@ export function StatsSection({ stats }: StatsSectionProps) {
             return (
               <div
                 key={stat.key}
-                className={`group relative bg-card rounded-2xl p-4 sm:p-6 border border-border/50 ${stat.borderHover} hover:shadow-xl ${stat.shadowHover} transition-all duration-300 hover:-translate-y-1`}
+                className={`group relative bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border border-border/50 ${stat.borderHover} hover:shadow-xl ${stat.shadowHover} transition-all duration-300 hover:-translate-y-1`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 {/* Gradient overlay on hover */}
-                <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                <div className={`absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
                 
                 <div className="relative">
-                  <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl ${stat.iconBg} mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${stat.iconColor}`} />
+                  <div className={`flex h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 items-center justify-center rounded-lg sm:rounded-xl ${stat.iconBg} mb-2 sm:mb-3 md:mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 ${stat.iconColor}`} />
                   </div>
-                  <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
+                  <p className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground truncate">
                     <AnimatedCounter value={typeof value === 'number' ? Math.round(value) : 0} />
                   </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-medium">{stat.label}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mt-0.5 sm:mt-1 font-medium truncate">{stat.label}</p>
                 </div>
               </div>
             )
@@ -153,23 +153,23 @@ export function StatsSection({ stats }: StatsSectionProps) {
 
         {/* Average Rating Card - Separate highlight */}
         {stats.avgRating > 0 && (
-          <div className="mt-6 sm:mt-8 max-w-sm mx-auto">
-            <div className="group relative bg-gradient-to-r from-amber-500/10 via-card to-orange-500/10 rounded-2xl p-4 sm:p-6 border border-amber-500/30 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 group-hover:scale-110 transition-transform duration-300">
-                    <Star className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500 fill-amber-500" />
+          <div className="mt-4 sm:mt-6 md:mt-8 max-w-sm mx-auto px-1 sm:px-0">
+            <div className="group relative bg-gradient-to-r from-amber-500/10 via-card to-orange-500/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border border-amber-500/30 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
+                  <div className="flex h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+                    <Star className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-amber-500 fill-amber-500" />
                   </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground font-medium">Community Rating</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.avgRating.toFixed(1)}</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground font-medium truncate">Community Rating</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">{stats.avgRating.toFixed(1)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-amber-500">
+                <div className="flex items-center gap-0.5 sm:gap-1 text-amber-500 shrink-0">
                   {[...Array(5)].map((_, i) => (
                     <Star 
                       key={i} 
-                      className={`h-4 w-4 sm:h-5 sm:w-5 ${i < Math.round(stats.avgRating) ? "fill-current" : "opacity-30"}`} 
+                      className={`h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ${i < Math.round(stats.avgRating) ? "fill-current" : "opacity-30"}`} 
                     />
                   ))}
                 </div>

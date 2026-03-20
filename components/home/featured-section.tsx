@@ -114,7 +114,7 @@ export function FeaturedSection({ featured }: FeaturedSectionProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 mb-4 sm:mb-6 md:mb-8 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -123,14 +123,15 @@ export function FeaturedSection({ featured }: FeaturedSectionProps) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-300 ${
                   isActive 
                     ? `${tab.bg} ${tab.color} shadow-md` 
                     : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                <Icon className={`h-4 w-4 ${isActive ? tab.color : ""}`} />
-                {tab.label}
+                <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isActive ? tab.color : ""}`} />
+                <span className="hidden xs:inline sm:inline">{tab.label}</span>
+                <span className="xs:hidden">{tab.label.slice(0, 3)}</span>
               </button>
             )
           })}
