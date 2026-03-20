@@ -31,18 +31,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { 
-      title, 
-      description, 
-      filePath, 
-      fileSize, 
-      categoryId,
-      tags,
-      visibility,
-      scheduledAt,
-      allowDownload,
-      customSlug
-    } = body
+    const { title, description, filePath, fileSize, categoryId } = body
+    // Note: Advanced fields (tags, visibility, scheduledAt, allowDownload, customSlug)
+    // are accepted from the form but NOT saved until database migration runs
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -67,9 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A PDF with this title already exists" }, { status: 400 })
     }
 
-    // Create database record - use basic fields only
-    // Note: Advanced fields (tags, visibility, scheduled_at, allow_download, slug) 
-    // require running the migration script first
+// Create database record with basic fields only (no advanced columns)
     const { data: pdf, error: dbError } = await supabase
       .from("pdfs")
       .insert({
