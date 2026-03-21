@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { FileText, Download, Eye, Star, Sparkles, Calendar } from "lucide-react"
+import Image from "next/image"
+import { FileText, Download, Eye, Star, Sparkles, Calendar, TrendingUp, Award, Flame, Clock } from "lucide-react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FavoriteButton } from "@/components/favorite-button"
@@ -8,6 +9,8 @@ import type { PDF } from "@/lib/types"
 interface PDFCardProps {
   pdf: PDF
   compact?: boolean
+  showRank?: boolean
+  rank?: number
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -24,6 +27,18 @@ function isNewPDF(dateString: string): boolean {
   return diffDays <= 7
 }
 
+function isPopular(downloadCount: number): boolean {
+  return downloadCount >= 100
+}
+
+function isTopRated(rating: number | null): boolean {
+  return rating !== null && rating >= 4.5
+}
+
+function isTrending(viewCount: number): boolean {
+  return viewCount >= 500
+}
+
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
     month: "short",
@@ -31,8 +46,11 @@ function formatDate(dateString: string): string {
   })
 }
 
-export function PDFCard({ pdf, compact = false }: PDFCardProps) {
+export function PDFCard({ pdf, compact = false, showRank = false, rank }: PDFCardProps) {
   const isNew = isNewPDF(pdf.created_at)
+  const isPop = isPopular(pdf.download_count)
+  const isTop = isTopRated(pdf.average_rating)
+  const isTrend = isTrending(pdf.view_count || 0)
   
   if (compact) {
     return (
@@ -110,19 +128,19 @@ export function PDFCard({ pdf, compact = false }: PDFCardProps) {
 
   return (
     <Link href={`/pdf/${pdf.id}`}>
-      <Card className="group h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/15 hover:-translate-y-1.5 border-border/50 bg-card hover:border-primary/30">
+      <Card className="group h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-2 hover:scale-[1.02] border-border/50 bg-card hover:border-primary/40">
         {/* PDF Preview Area */}
         <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden">
           {/* Background gradient with pattern */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 group-hover:from-primary/20 group-hover:via-accent/15 group-hover:to-primary/10 transition-all duration-500" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_70%)]" />
           
-          {/* PDF Icon with animation */}
+          {/* PDF Icon with animation - this acts as thumbnail preview */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="relative">
-              <div className="absolute -inset-3 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative bg-card/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-border/50 group-hover:border-primary/30 group-hover:scale-105 transition-all duration-300 shadow-lg">
-                <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
+              <div className="absolute -inset-4 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative bg-card/90 backdrop-blur-sm rounded-xl p-4 sm:p-5 border border-border/50 group-hover:border-primary/40 group-hover:scale-110 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                <FileText className="h-10 w-10 sm:h-14 sm:w-14 text-primary group-hover:text-primary/90 transition-colors" />
               </div>
             </div>
           </div>
@@ -140,13 +158,40 @@ export function PDFCard({ pdf, compact = false }: PDFCardProps) {
             </Badge>
           )}
           
-          {/* New Badge */}
-          {isNew && (
-            <Badge className="absolute top-2 right-10 sm:top-3 sm:right-12 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-md">
-              <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />
-              New
-            </Badge>
-          )}
+          {/* Status Badges - Top Right Area */}
+          <div className="absolute top-2 right-10 sm:top-3 sm:right-12 flex flex-col gap-1">
+            {/* New Badge */}
+            {isNew && (
+              <Badge className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-md">
+                <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                New
+              </Badge>
+            )}
+            
+            {/* Top Rated Badge */}
+            {isTop && !isNew && (
+              <Badge className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 shadow-md">
+                <Award className="h-2.5 w-2.5 mr-0.5" />
+                Top Rated
+              </Badge>
+            )}
+            
+            {/* Popular Badge */}
+            {isPop && !isNew && !isTop && (
+              <Badge className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white border-0 shadow-md">
+                <Flame className="h-2.5 w-2.5 mr-0.5" />
+                Popular
+              </Badge>
+            )}
+            
+            {/* Trending Badge */}
+            {isTrend && !isNew && !isTop && !isPop && (
+              <Badge className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0 shadow-md">
+                <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                Trending
+              </Badge>
+            )}
+          </div>
 
           {/* Favorite Button */}
           <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-300">
@@ -154,7 +199,25 @@ export function PDFCard({ pdf, compact = false }: PDFCardProps) {
           </div>
           
           {/* Bottom gradient overlay */}
-          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card via-card/80 to-transparent" />
+          
+          {/* Quick Stats Overlay on Hover */}
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+            <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-md text-[10px] font-medium shadow-sm">
+              <Download className="h-3 w-3 text-green-500" />
+              <span>{pdf.download_count.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-md text-[10px] font-medium shadow-sm">
+              <Eye className="h-3 w-3 text-blue-500" />
+              <span>{(pdf.view_count || 0).toLocaleString()}</span>
+            </div>
+            {pdf.average_rating && (
+              <div className="flex items-center gap-0.5 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-md text-[10px] font-medium shadow-sm">
+                <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                <span>{pdf.average_rating.toFixed(1)}</span>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Content */}

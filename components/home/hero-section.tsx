@@ -1,14 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, BookOpen, Download, Sparkles, ArrowRight, Play } from "lucide-react"
+import { FileText, BookOpen, Download, Sparkles, ArrowRight, Users, RefreshCw, Star, GraduationCap, TrendingUp, Shield, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 const taglines = [
   "Explore Curated Knowledge",
   "Download Quality PDFs",
   "Learn Without Limits",
   "Expand Your Horizons",
+]
+
+const trustStats = [
+  { icon: Users, label: "10,000+ Students", color: "text-blue-500" },
+  { icon: RefreshCw, label: "Updated Daily", color: "text-green-500" },
+  { icon: Star, label: "4.9/5 Rating", color: "text-amber-500" },
 ]
 
 export function HeroSection() {
@@ -40,8 +47,21 @@ export function HeroSection() {
       <div className="absolute top-20 left-10 w-20 h-20 bg-primary/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-20 right-10 w-32 h-32 bg-accent/10 rounded-full blur-3xl animate-pulse delay-1000" />
 
-      <div className="container mx-auto px-4 py-16 sm:py-24 lg:py-32 relative">
+      <div className="container mx-auto px-4 py-12 sm:py-20 lg:py-28 relative">
         <div className="max-w-4xl mx-auto text-center">
+          {/* Trust Badges Row */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {trustStats.map((stat, index) => (
+              <div 
+                key={index}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/50 text-xs sm:text-sm font-medium"
+              >
+                <stat.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${stat.color}`} />
+                <span className="text-foreground">{stat.label}</span>
+              </div>
+            ))}
+          </div>
+          
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary mb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Sparkles className="h-4 w-4" />
@@ -118,18 +138,22 @@ export function HeroSection() {
           </div>
 
           {/* Feature Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-8 sm:mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400 px-4 sm:px-0">
-            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground">
-              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
-              <span className="whitespace-nowrap">Curated</span>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-8 sm:mt-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400 px-4 sm:px-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 cursor-default">
+              <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
+              <span className="whitespace-nowrap">Verified Content</span>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground">
-              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 shrink-0" />
-              <span className="whitespace-nowrap">Instant Download</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground hover:border-green-500/50 hover:bg-green-500/5 transition-all duration-300 cursor-default">
+              <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 shrink-0" />
+              <span className="whitespace-nowrap">One-Click Download</span>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground">
-              <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent shrink-0" />
-              <span className="whitespace-nowrap">100% Free</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground hover:border-accent/50 hover:bg-accent/5 transition-all duration-300 cursor-default">
+              <GraduationCap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent shrink-0" />
+              <span className="whitespace-nowrap">Student Approved</span>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-card border border-border/50 text-xs sm:text-sm text-muted-foreground hover:border-blue-500/50 hover:bg-blue-500/5 transition-all duration-300 cursor-default">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 shrink-0" />
+              <span className="whitespace-nowrap">Top Rated</span>
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { HeroSection } from "@/components/home/hero-section"
 import { StatsSection } from "@/components/home/stats-section"
 import { FeaturedSection } from "@/components/home/featured-section"
+import { TestimonialsSection } from "@/components/home/testimonials-section"
 import { PDFGrid } from "@/components/pdf-grid"
 import { Footer } from "@/components/footer"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -101,6 +102,9 @@ export default async function HomePage() {
         {configured && pdfs.length > 0 && (
           <FeaturedSection featured={featured} />
         )}
+
+        {/* Testimonials Section */}
+        <TestimonialsSection />
 
         {/* Setup Notice */}
         {!configured && (
