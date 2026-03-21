@@ -226,30 +226,34 @@ export function QuizManager() {
   // Parse HTML to extract quiz data
   const parseQuizHtml = (html: string): Quiz | null => {
     try {
+      console.log("[v0] Starting HTML parse...")
+      
       // Extract title from multiple possible patterns
       let title = ""
       
-      // Try .start-title class
-      const startTitleMatch = html.match(/<[^>]*class="[^"]*start-title[^"]*"[^>]*>([^<]*)</)
+      // Try .start-title class - match content inside the tag
+      const startTitleMatch = html.match(/<h1[^>]*class="[^"]*start-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i)
       if (startTitleMatch) {
-        title = startTitleMatch[1].trim()
+        title = startTitleMatch[1].replace(/<[^>]*>/g, '').trim()
       }
       
-      // Try h1 tag
+      // Try any h1 with start-title content
       if (!title) {
-        const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i)
+        const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)
         if (h1Match) {
-          title = h1Match[1].trim()
+          title = h1Match[1].replace(/<[^>]*>/g, '').trim()
         }
       }
       
       // Try title tag
       if (!title) {
-        const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i)
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
         if (titleMatch) {
-          title = titleMatch[1].trim()
+          title = titleMatch[1].replace(/<[^>]*>/g, '').trim()
         }
       }
+      
+      console.log("[v0] Extracted title:", title)
       
       // Clean title - remove other branding
       title = title
@@ -268,55 +272,68 @@ export function QuizManager() {
       const timeMatch = html.match(/const\s+TIME\s*=\s*(\d+)/i)
       if (timeMatch) {
         timeLimit = parseInt(timeMatch[1])
+        console.log("[v0] Found time limit:", timeLimit)
       }
 
-      // Method 1: Try to find Q array with template literals
-      const qArrayMatch = html.match(/const\s+Q\s*=\s*\[([\s\S]*?)\];/m)
-      if (qArrayMatch) {
-        const arrayContent = qArrayMatch[1]
-        
-        // Parse each question object using regex
-        const questionRegex = /\{\s*question\s*:\s*[`'"]([\s\S]*?)[`'"]\s*,\s*options\s*:\s*\[([\s\S]*?)\]\s*,\s*correct\s*:\s*(\d+)/g
-        let match
-        
-        while ((match = questionRegex.exec(arrayContent)) !== null) {
-          const questionText = match[1].trim()
-          const optionsStr = match[2]
-          const correct = parseInt(match[3])
-          
-          // Parse options - handle backticks, single quotes, double quotes
-          const optionMatches = optionsStr.match(/[`'"]([^`'"]*)[`'"]/g)
-          const options = optionMatches 
-            ? optionMatches.map(o => o.slice(1, -1).trim())
-            : []
-          
-          if (options.length >= 2) {
-            questionsData.push({
-              question: questionText,
-              options: options,
-              correct: correct,
-              marks: 1,
-              explanation: ""
-            })
-          }
+      // Method 1: Try JSON format - const Q = [{...}, {...}]
+      const jsonArrayMatch = html.match(/const\s+Q\s*=\s*(\[[\s\S]*?\]);/m)
+      if (jsonArrayMatch) {
+        try {
+          // Try to parse as JSON directly
+          const jsonStr = jsonArrayMatch[1]
+          questionsData = JSON.parse(jsonStr)
+          console.log("[v0] JSON parse successful, found", questionsData.length, "questions")
+        } catch (jsonError) {
+          console.log("[v0] JSON parse failed, trying regex method...")
         }
       }
 
-      // Method 2: If method 1 failed, try alternative parsing
+      // Method 2: If JSON failed, try regex for JS object format
       if (questionsData.length === 0) {
-        // Try to find questions in different format
-        const altQuestionRegex = /question\s*:\s*[`'"](.*?)[`'"]/gi
-        const altOptionRegex = /options\s*:\s*\[(.*?)\]/gi
-        const altCorrectRegex = /correct\s*:\s*(\d+)/gi
+        const qArrayMatch = html.match(/const\s+Q\s*=\s*\[([\s\S]*?)\];/m)
+        if (qArrayMatch) {
+          const arrayContent = qArrayMatch[1]
+          
+          // Parse each question object using regex for template literals
+          const questionRegex = /\{\s*question\s*:\s*[`'"]([\s\S]*?)[`'"]\s*,\s*options\s*:\s*\[([\s\S]*?)\]\s*,\s*correct\s*:\s*(\d+)/g
+          let match
+          
+          while ((match = questionRegex.exec(arrayContent)) !== null) {
+            const questionText = match[1].trim()
+            const optionsStr = match[2]
+            const correct = parseInt(match[3])
+            
+            const optionMatches = optionsStr.match(/[`'"]([^`'"]*)[`'"]/g)
+            const options = optionMatches 
+              ? optionMatches.map(o => o.slice(1, -1).trim())
+              : []
+            
+            if (options.length >= 2) {
+              questionsData.push({
+                question: questionText,
+                options: options,
+                correct: correct,
+                marks: 1,
+                explanation: ""
+              })
+            }
+          }
+          console.log("[v0] Regex method found", questionsData.length, "questions")
+        }
+      }
+
+      // Method 3: Find individual question/options/correct patterns
+      if (questionsData.length === 0) {
+        const questions = [...html.matchAll(/"question"\s*:\s*"([\s\S]*?)"/gi)]
+        const optionSets = [...html.matchAll(/"options"\s*:\s*\[([\s\S]*?)\]/gi)]
+        const corrects = [...html.matchAll(/"correct"\s*:\s*(\d+)/gi)]
         
-        const questions = [...html.matchAll(/question\s*:\s*[`'"]([\s\S]*?)[`'"]/gi)]
-        const optionSets = [...html.matchAll(/options\s*:\s*\[([\s\S]*?)\]/gi)]
-        const corrects = [...html.matchAll(/correct\s*:\s*(\d+)/gi)]
+        console.log("[v0] Pattern match found:", questions.length, "questions")
         
         for (let i = 0; i < questions.length; i++) {
           if (optionSets[i] && corrects[i]) {
             const optionsStr = optionSets[i][1]
-            const optionMatches = optionsStr.match(/[`'"]([^`'"]+)[`'"]/g)
+            const optionMatches = optionsStr.match(/"([^"]*)"/g)
             const options = optionMatches 
               ? optionMatches.map(o => o.slice(1, -1).trim())
               : []
@@ -334,7 +351,10 @@ export function QuizManager() {
         }
       }
 
+      console.log("[v0] Total questions extracted:", questionsData.length)
+
       if (questionsData.length === 0) {
+        console.log("[v0] No questions found!")
         return null
       }
 
@@ -347,14 +367,14 @@ export function QuizManager() {
           .replace(/Sumit/gi, "TechVyro"),
         options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : ["", "", "", ""],
         correct: typeof q.correct === "number" ? q.correct : 1,
-        marks: typeof q.marks === "number" ? q.marks : 1,
-        explanation: String(q.explanation || "")
+        marks: typeof q.marks === "number" ? q.marks : (q.mark ? parseInt(q.mark) : 1),
+        explanation: String(q.explanation || q.solution || "")
       }))
 
       // Detect category from title
       let category = "General"
       const lowerTitle = title.toLowerCase()
-      if (lowerTitle.includes("math") || lowerTitle.includes("algebra") || lowerTitle.includes("geometry") || lowerTitle.includes("inverse")) {
+      if (lowerTitle.includes("math") || lowerTitle.includes("algebra") || lowerTitle.includes("geometry") || lowerTitle.includes("inverse") || lowerTitle.includes("trigonometric")) {
         category = "Mathematics"
       } else if (lowerTitle.includes("physics")) {
         category = "Physics"
@@ -370,6 +390,8 @@ export function QuizManager() {
         category = "SSC"
       }
 
+      console.log("[v0] Quiz ready:", title, "-", questions.length, "questions")
+
       return {
         id: generateId(),
         title,
@@ -382,6 +404,7 @@ export function QuizManager() {
       }
 
     } catch (e) {
+      console.log("[v0] Parse error:", e)
       return null
     }
   }
