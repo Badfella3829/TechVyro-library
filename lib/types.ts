@@ -31,3 +31,49 @@ export interface PDF {
   category?: Category | null
   reviews?: Review[]
 }
+
+export interface Testimonial {
+  id: string
+  name: string
+  course: string
+  avatar: string
+  rating: number
+  comment: string
+  verified: boolean
+  enabled: boolean
+  createdAt: string
+}
+
+// Hierarchical Structure: Folder > Category > Section
+export interface ContentSection {
+  id: string
+  name: string
+  description: string
+  icon: string
+  pdfCount: number
+  order: number
+  enabled: boolean
+}
+
+export interface ContentCategory {
+  id: string
+  name: string
+  description: string
+  color: string
+  icon: string
+  sections: ContentSection[]
+  order: number
+  enabled: boolean
+}
+
+export interface ContentFolder {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  categories: ContentCategory[]
+  order: number
+  enabled: boolean
+  createdAt: string
+}

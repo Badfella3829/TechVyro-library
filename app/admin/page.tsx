@@ -51,6 +51,10 @@ const HomepageManager = dynamic(() => import("@/components/admin/homepage-manage
   loading: () => <ComponentLoader text="Loading homepage manager..." />,
 })
 
+const FolderManager = dynamic(() => import("@/components/admin/folder-manager").then(mod => ({ default: mod.FolderManager })), {
+  loading: () => <ComponentLoader text="Loading folder manager..." />,
+})
+
 function ComponentLoader({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -80,7 +84,6 @@ export default function AdminPage() {
       setCategories(catsData.categories || [])
       setPdfs(pdfsData.pdfs || [])
     } catch (error) {
-      console.error("[v0] Error fetching data:", error)
       toast.error("Failed to fetch data")
     } finally {
       setLoading(false)
@@ -228,8 +231,12 @@ export default function AdminPage() {
                 {pdfs.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
+            <TabsTrigger value="structure" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
               <FolderPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Structure</span>
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
+              <Database className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Categories</span>
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-accent/10 text-accent">
                 {categories.length}
@@ -533,16 +540,35 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
+          {/* Structure Tab - Folder > Category > Section */}
+          <TabsContent value="structure">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderPlus className="h-5 w-5 text-primary" />
+                  Content Structure
+                </CardTitle>
+                <CardDescription>
+                  Create hierarchical structure: Folders contain Categories, and Categories contain Sections. 
+                  This structure is displayed on the homepage.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FolderManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Categories Tab */}
           <TabsContent value="categories">
             <Card className="border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FolderPlus className="h-5 w-5 text-primary" />
-                  Categories
+                  <Database className="h-5 w-5 text-primary" />
+                  Database Categories
                 </CardTitle>
                 <CardDescription>
-                  Create and manage document categories. Categories help organize your PDF library.
+                  Manage database categories for PDFs. These are linked to actual PDF files in the system.
                 </CardDescription>
               </CardHeader>
               <CardContent>
