@@ -112,27 +112,44 @@ export function QuizSection() {
     )
   }
 
-  // Don't show section if no quizzes
-  if (quizzes.length === 0) {
-    return null
-  }
-
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-background to-muted/30">
+    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center mb-10 sm:mb-14">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 text-sm px-4 py-1.5">
-            <Zap className="h-4 w-4 mr-2" />
+        <div className="text-center mb-8 sm:mb-12">
+          <Badge className="mb-3 sm:mb-4 bg-primary/10 text-primary border-primary/20 text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-1.5">
+            <Zap className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
             Practice Tests
           </Badge>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-2 sm:mb-3">
             Test Your Knowledge
           </h2>
-          <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto">
+          <p className="text-muted-foreground text-xs sm:text-sm max-w-md sm:max-w-xl mx-auto px-2">
             Challenge yourself with our curated quizzes and compete on the leaderboard
           </p>
         </div>
+
+        {/* Empty State - when no quizzes */}
+        {quizzes.length === 0 && (
+          <div className="max-w-md mx-auto text-center py-6 sm:py-8">
+            <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4">
+              <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+            </div>
+            <h3 className="font-semibold text-base sm:text-lg mb-2">Quizzes Coming Soon</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+              We're preparing exciting practice tests for you. Check back soon!
+            </p>
+            <Button asChild variant="outline" size="sm" className="text-xs sm:text-sm">
+              <Link href="/quiz">
+                <Zap className="h-3 w-3 mr-1.5" />
+                Explore Quiz Section
+              </Link>
+            </Button>
+          </div>
+        )}
+
+        {/* Quiz Content - when quizzes exist */}
+        {quizzes.length > 0 && (
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Quizzes Grid */}
@@ -258,6 +275,7 @@ export function QuizSection() {
             </Card>
           </div>
         </div>
+        )}
       </div>
     </section>
   )
