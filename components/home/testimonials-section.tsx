@@ -1,6 +1,6 @@
 "use client"
 
-import { Star, Quote, GraduationCap, BookOpen, Award, CheckCircle2, Users, TrendingUp } from "lucide-react"
+import { Star, Quote, GraduationCap, CheckCircle2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -74,60 +74,37 @@ const testimonials = [
   },
 ]
 
-const trustIndicators = [
-  { icon: Users, label: "10,000+", subtext: "Happy Students", color: "text-blue-500", bg: "bg-blue-500/10" },
-  { icon: BookOpen, label: "500+", subtext: "Quality PDFs", color: "text-green-500", bg: "bg-green-500/10" },
-  { icon: Award, label: "4.9/5", subtext: "User Rating", color: "text-amber-500", bg: "bg-amber-500/10" },
-  { icon: TrendingUp, label: "Daily", subtext: "New Content", color: "text-rose-500", bg: "bg-rose-500/10" },
-]
-
 export function TestimonialsSection() {
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-muted/50 via-muted/30 to-background overflow-hidden">
+    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-muted/50 via-muted/30 to-background">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
             <Star className="h-4 w-4 fill-current" />
-            Student Testimonials
+            Student Reviews
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-            Trusted by <span className="text-primary">10,000+</span> Students
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3">
+            What Students Say
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base">
-            Join thousands of successful students who use TechVyro for their exam preparation
+          <p className="text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
+            Join thousands of successful students who use TechVyro for exam preparation
           </p>
         </div>
 
-        {/* Trust Indicators */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-12 sm:mb-16 max-w-3xl mx-auto">
-          {trustIndicators.map((item, index) => (
-            <div 
-              key={index}
-              className="flex flex-col items-center p-4 sm:p-5 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-            >
-              <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl ${item.bg} mb-2 sm:mb-3`}>
-                <item.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${item.color}`} />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-foreground">{item.label}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">{item.subtext}</p>
-            </div>
-          ))}
-        </div>
-
         {/* Testimonials Grid - Show 2-3 at once */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {testimonials.slice(0, 6).map((testimonial, index) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {testimonials.slice(0, 6).map((testimonial) => (
             <Card 
               key={testimonial.id}
-              className="relative border-border/50 bg-card/80 backdrop-blur-sm overflow-hidden hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 transition-all duration-300 group"
+              className="relative border-border/50 bg-card overflow-hidden hover:shadow-xl hover:border-primary/30 hover:-translate-y-2 transition-all duration-300 group"
             >
               {/* Quote decoration */}
-              <div className="absolute top-3 right-3">
-                <Quote className="h-6 w-6 text-primary/10 group-hover:text-primary/20 transition-colors" />
+              <div className="absolute top-4 right-4">
+                <Quote className="h-8 w-8 text-primary/10 group-hover:text-primary/20 transition-colors" />
               </div>
               
-              <CardContent className="p-5 sm:p-6">
+              <CardContent className="p-6">
                 {/* Rating */}
                 <div className="flex items-center gap-0.5 mb-4">
                   {[...Array(5)].map((_, i) => (
@@ -143,14 +120,14 @@ export function TestimonialsSection() {
                 </div>
                 
                 {/* Testimonial Text */}
-                <p className="text-sm text-foreground leading-relaxed mb-5">
+                <p className="text-sm sm:text-base text-foreground leading-relaxed mb-6">
                   {`"${testimonial.text}"`}
                 </p>
                 
                 {/* Author Info */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 pt-4 border-t border-border/50">
                   {/* Avatar with real photo */}
-                  <Avatar className="h-11 w-11 border-2 border-primary/20 ring-2 ring-background">
+                  <Avatar className="h-12 w-12 border-2 border-primary/20">
                     <AvatarImage src={testimonial.image} alt={testimonial.name} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-bold">
                       {testimonial.avatar}
@@ -160,27 +137,25 @@ export function TestimonialsSection() {
                   {/* Name & Role */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="font-semibold text-foreground text-sm truncate">{testimonial.name}</p>
+                      <p className="font-semibold text-foreground text-sm">{testimonial.name}</p>
                       {testimonial.verified && (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {testimonial.role}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-muted-foreground">
+                        {testimonial.role}
+                      </p>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-0">
+                        Verified
+                      </Badge>
+                    </div>
                   </div>
-                  
-                  {/* Verified Badge */}
-                  {testimonial.verified && (
-                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-green-500/10 text-green-600 border-0 shrink-0">
-                      Verified
-                    </Badge>
-                  )}
                 </div>
                 
                 {/* Course Badge */}
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <Badge variant="outline" className="text-[10px] font-medium">
+                <div className="mt-4">
+                  <Badge variant="outline" className="text-[10px] sm:text-xs font-medium">
                     <GraduationCap className="h-3 w-3 mr-1" />
                     {testimonial.course}
                   </Badge>
@@ -190,10 +165,10 @@ export function TestimonialsSection() {
           ))}
         </div>
         
-        {/* Bottom CTA */}
-        <div className="text-center mt-10 sm:mt-12">
+        {/* Bottom Trust Text */}
+        <div className="text-center mt-12 sm:mt-14">
           <p className="text-sm text-muted-foreground">
-            Join <span className="font-semibold text-primary">10,000+ students</span> who trust TechVyro for their studies
+            Trusted by <span className="font-semibold text-primary">10,000+</span> students across India
           </p>
         </div>
       </div>
