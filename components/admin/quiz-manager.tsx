@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { 
   Plus, Trash2, Edit, ChevronDown, ChevronRight, Clock, FileText,
-  CheckCircle, Save, X, Upload, Eye, Copy, ExternalLink
+  CheckCircle, Save, X, Upload, Eye, Copy, ExternalLink, FileUp, Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { toast } from "sonner"
 
 interface Question {
@@ -81,6 +87,9 @@ export function QuizManager() {
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [importHtml, setImportHtml] = useState("")
   const [expandedQuizzes, setExpandedQuizzes] = useState<Set<string>>(new Set())
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedFileName, setUploadedFileName] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -88,7 +97,7 @@ export function QuizManager() {
       try {
         setQuizzes(JSON.parse(saved))
       } catch (e) {
-        console.error("Failed to parse quizzes")
+        // Failed to parse
       }
     }
   }, [])
@@ -214,71 +223,183 @@ export function QuizManager() {
     toast.success("Question deleted")
   }
 
-  // Import from HTML
-  const handleImportHtml = () => {
+  // Parse HTML to extract quiz data
+  const parseQuizHtml = (html: string): Quiz | null => {
     try {
-      // Parse the HTML to extract quiz data
       const parser = new DOMParser()
-      const doc = parser.parseFromString(importHtml, "text/html")
+      const doc = parser.parseFromString(html, "text/html")
       
-      // Extract title
+      // Extract title from multiple possible locations
+      let title = ""
       const titleEl = doc.querySelector(".start-title")
-      const title = titleEl?.textContent?.trim() || "Imported Quiz"
+      if (titleEl) {
+        title = titleEl.textContent?.trim() || ""
+      }
+      if (!title) {
+        const h1 = doc.querySelector("h1")
+        title = h1?.textContent?.trim() || ""
+      }
+      if (!title) {
+        const titleTag = doc.querySelector("title")
+        title = titleTag?.textContent?.trim() || ""
+      }
+      
+      // Clean title - remove other branding
+      title = title
+        .replace(/Boss_Quiz_Robot/gi, "TechVyro")
+        .replace(/LearnWithSumit/gi, "TechVyro")
+        .replace(/Sumit/gi, "TechVyro")
+        .trim() || "Imported Quiz"
 
       // Try to extract questions from script
       const scripts = doc.querySelectorAll("script")
       let questionsData: any[] = []
+      let timeLimit = 1200
 
       scripts.forEach(script => {
         const content = script.textContent || ""
-        const match = content.match(/const Q = (\[[\s\S]*?\]);/)
-        if (match) {
+        
+        // Find Q array
+        const qMatch = content.match(/const\s+Q\s*=\s*(\[[\s\S]*?\]);/m)
+        if (qMatch) {
           try {
-            questionsData = JSON.parse(match[1])
+            // Clean up the JSON - handle single quotes, trailing commas
+            let jsonStr = qMatch[1]
+              .replace(/'/g, '"')
+              .replace(/,(\s*[\]}])/g, '$1')
+              .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')
+            questionsData = JSON.parse(jsonStr)
           } catch (e) {
-            // Try eval as fallback (careful with this)
+            // Try another approach - eval-like parsing
+            try {
+              const evalMatch = content.match(/const\s+Q\s*=\s*(\[[\s\S]*?\]);/m)
+              if (evalMatch) {
+                // Manual parsing for common patterns
+                const arrayContent = evalMatch[1]
+                const questionMatches = arrayContent.matchAll(/\{\s*question\s*:\s*["'`]([\s\S]*?)["'`]\s*,\s*options\s*:\s*\[([\s\S]*?)\]\s*,\s*correct\s*:\s*(\d+)/g)
+                
+                for (const match of questionMatches) {
+                  const options = match[2]
+                    .split(',')
+                    .map(o => o.trim().replace(/^["'`]|["'`]$/g, '').trim())
+                    .filter(o => o.length > 0)
+                  
+                  questionsData.push({
+                    question: match[1],
+                    options: options,
+                    correct: parseInt(match[3]),
+                    marks: 1,
+                    explanation: ""
+                  })
+                }
+              }
+            } catch (e2) {
+              // Silent fail
+            }
           }
+        }
+
+        // Find TIME
+        const timeMatch = content.match(/const\s+TIME\s*=\s*(\d+)/)
+        if (timeMatch) {
+          timeLimit = parseInt(timeMatch[1])
         }
       })
 
       if (questionsData.length === 0) {
-        toast.error("Could not parse questions from HTML")
-        return
+        return null
       }
 
       // Convert to our format
-      const questions: Question[] = questionsData.map((q: any, idx: number) => ({
+      const questions: Question[] = questionsData.map((q: any) => ({
         id: generateId(),
-        question: q.question || "",
-        options: q.options || ["", "", "", ""],
-        correct: q.correct || 1,
-        marks: q.marks || 1,
-        explanation: q.explanation || ""
+        question: String(q.question || "").replace(/Boss_Quiz_Robot/gi, "TechVyro").replace(/LearnWithSumit/gi, "TechVyro"),
+        options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : ["", "", "", ""],
+        correct: typeof q.correct === "number" ? q.correct : 1,
+        marks: typeof q.marks === "number" ? q.marks : 1,
+        explanation: String(q.explanation || "")
       }))
 
-      // Extract time
-      const timeMatch = importHtml.match(/const TIME = (\d+);/)
-      const timeLimit = timeMatch ? parseInt(timeMatch[1]) : 1200
+      // Detect category from title
+      let category = "General"
+      const lowerTitle = title.toLowerCase()
+      if (lowerTitle.includes("math") || lowerTitle.includes("algebra") || lowerTitle.includes("geometry")) {
+        category = "Mathematics"
+      } else if (lowerTitle.includes("physics")) {
+        category = "Physics"
+      } else if (lowerTitle.includes("chemistry")) {
+        category = "Chemistry"
+      } else if (lowerTitle.includes("biology")) {
+        category = "Biology"
+      } else if (lowerTitle.includes("english")) {
+        category = "English"
+      } else if (lowerTitle.includes("nda")) {
+        category = "NDA"
+      } else if (lowerTitle.includes("ssc")) {
+        category = "SSC"
+      }
 
-      const newQuiz: Quiz = {
+      return {
         id: generateId(),
-        title: title.replace("Boss_Quiz_Robot", "TechVyro"),
-        description: `Imported quiz with ${questions.length} questions`,
-        category: "General",
+        title,
+        description: `${questions.length} questions | ${Math.floor(timeLimit / 60)} minutes`,
+        category,
         timeLimit,
         questions,
         enabled: true,
         createdAt: new Date().toISOString()
       }
 
-      saveQuizzes([...quizzes, newQuiz])
-      setShowImportDialog(false)
-      setImportHtml("")
-      toast.success(`Quiz imported with ${questions.length} questions`)
-
     } catch (e) {
-      toast.error("Failed to import HTML")
+      return null
     }
+  }
+
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.endsWith('.html') && !file.name.endsWith('.htm')) {
+      toast.error("Please upload an HTML file")
+      return
+    }
+
+    setIsUploading(true)
+    setUploadedFileName(file.name)
+
+    try {
+      const text = await file.text()
+      setImportHtml(text)
+      
+      // Auto-parse and show preview
+      const quiz = parseQuizHtml(text)
+      if (quiz) {
+        toast.success(`Detected: "${quiz.title}" with ${quiz.questions.length} questions`)
+      }
+    } catch (e) {
+      toast.error("Failed to read file")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Handle import
+  const handleImportHtml = () => {
+    const quiz = parseQuizHtml(importHtml)
+    
+    if (!quiz || quiz.questions.length === 0) {
+      toast.error("Could not parse questions from HTML. Make sure it contains valid quiz data.")
+      return
+    }
+
+    saveQuizzes([...quizzes, quiz])
+    setShowImportDialog(false)
+    setImportHtml("")
+    setUploadedFileName("")
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    
+    toast.success(`Quiz imported: "${quiz.title}" with ${quiz.questions.length} questions`)
   }
 
   const toggleExpanded = (quizId: string) => {
@@ -317,7 +438,7 @@ export function QuizManager() {
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="font-semibold mb-2">No Quizzes Yet</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Create your first quiz or import from HTML
+              Create your first quiz or import from HTML file
             </p>
             <div className="flex justify-center gap-3">
               <Button onClick={handleAddQuiz}>Create Quiz</Button>
@@ -335,12 +456,12 @@ export function QuizManager() {
             >
               <Card className={!quiz.enabled ? "opacity-60" : ""}>
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
                     <CollapsibleTrigger className="flex items-center gap-2 text-left">
                       {expandedQuizzes.has(quiz.id) ? (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
                       ) : (
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                       )}
                       <div>
                         <CardTitle className="text-lg">{quiz.title}</CardTitle>
@@ -348,7 +469,7 @@ export function QuizManager() {
                       </div>
                     </CollapsibleTrigger>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline">{quiz.category}</Badge>
                       <Badge variant="secondary">
                         <Clock className="h-3 w-3 mr-1" />
@@ -360,7 +481,7 @@ export function QuizManager() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
                     <Switch 
                       checked={quiz.enabled}
                       onCheckedChange={() => handleToggleQuiz(quiz.id)}
@@ -409,14 +530,14 @@ export function QuizManager() {
                             key={q.id}
                             className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
                           >
-                            <span className="font-bold text-primary w-8">
+                            <span className="font-bold text-primary w-8 shrink-0">
                               Q{idx + 1}
                             </span>
                             <div 
                               className="flex-1 text-sm line-clamp-1"
                               dangerouslySetInnerHTML={{ __html: q.question }}
                             />
-                            <Badge variant="secondary">{q.marks} marks</Badge>
+                            <Badge variant="secondary" className="shrink-0">{q.marks} marks</Badge>
                             <Button 
                               size="sm" 
                               variant="ghost"
@@ -582,14 +703,11 @@ export function QuizManager() {
                         ...editingQuestion,
                         question: { ...editingQuestion.question, correct: idx + 1 }
                       })}
-                      className="w-5 h-5"
-                      title="Mark as correct"
+                      className="h-4 w-4"
                     />
+                    <span className="text-sm text-muted-foreground">Correct</span>
                   </div>
                 ))}
-                <p className="text-xs text-muted-foreground">
-                  Select the radio button next to the correct answer
-                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -609,14 +727,14 @@ export function QuizManager() {
               </div>
 
               <div>
-                <Label>Explanation (HTML supported)</Label>
+                <Label>Explanation (optional)</Label>
                 <Textarea
                   value={editingQuestion.question.explanation}
                   onChange={e => setEditingQuestion({
                     ...editingQuestion,
                     question: { ...editingQuestion.question, explanation: e.target.value }
                   })}
-                  placeholder="Solution explanation..."
+                  placeholder="Explain the correct answer..."
                   rows={3}
                 />
               </div>
@@ -636,25 +754,107 @@ export function QuizManager() {
       </Dialog>
 
       {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={showImportDialog} onOpenChange={(open) => {
+        setShowImportDialog(open)
+        if (!open) {
+          setImportHtml("")
+          setUploadedFileName("")
+          if (fileInputRef.current) fileInputRef.current.value = ""
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Import Quiz from HTML</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Paste the HTML code from your quiz file. The system will extract questions 
-              and convert them to TechVyro format.
-            </p>
-            
-            <Textarea
-              value={importHtml}
-              onChange={e => setImportHtml(e.target.value)}
-              placeholder="Paste HTML code here..."
-              rows={12}
-              className="font-mono text-xs"
-            />
+          <Tabs defaultValue="upload" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="upload">
+                <FileUp className="h-4 w-4 mr-2" />
+                Upload File
+              </TabsTrigger>
+              <TabsTrigger value="paste">
+                <FileText className="h-4 w-4 mr-2" />
+                Paste HTML
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upload" className="space-y-4 mt-4">
+              <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".html,.htm"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="html-upload"
+                />
+                
+                {isUploading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Processing file...</p>
+                  </div>
+                ) : uploadedFileName ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <CheckCircle className="h-8 w-8 text-green-500" />
+                    <p className="font-medium">{uploadedFileName}</p>
+                    <p className="text-sm text-muted-foreground">File loaded successfully</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Choose Different File
+                    </Button>
+                  </div>
+                ) : (
+                  <label htmlFor="html-upload" className="cursor-pointer">
+                    <FileUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="font-medium mb-1">Click to upload HTML file</p>
+                    <p className="text-sm text-muted-foreground">
+                      or drag and drop your quiz HTML file here
+                    </p>
+                  </label>
+                )}
+              </div>
+
+              {importHtml && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium mb-1">Preview</p>
+                  <p className="text-sm text-muted-foreground">
+                    {importHtml.length.toLocaleString()} characters loaded
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="paste" className="space-y-4 mt-4">
+              <div>
+                <Label>Paste HTML Code</Label>
+                <Textarea
+                  value={importHtml}
+                  onChange={e => setImportHtml(e.target.value)}
+                  placeholder="Paste your quiz HTML code here..."
+                  rows={12}
+                  className="font-mono text-xs"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4">
+            <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
+              Auto-Detection Features
+            </h4>
+            <ul className="text-sm text-blue-600 dark:text-blue-300 space-y-1">
+              <li>• Automatically extracts quiz title</li>
+              <li>• Detects all questions and options</li>
+              <li>• Identifies correct answers</li>
+              <li>• Extracts time limit settings</li>
+              <li>• Auto-categorizes based on title</li>
+              <li>• Replaces external branding with TechVyro</li>
+            </ul>
           </div>
 
           <DialogFooter>
