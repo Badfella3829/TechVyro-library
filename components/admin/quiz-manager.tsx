@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { 
   Plus, Trash2, Edit, ChevronDown, ChevronRight, Clock, FileText,
-  CheckCircle, Save, X, Upload, Eye, Copy, ExternalLink, FileUp, Loader2
+  CheckCircle, Save, Upload, Copy, ExternalLink, FileUp, Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,6 +89,7 @@ export function QuizManager() {
   const [expandedQuizzes, setExpandedQuizzes] = useState<Set<string>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedFileName, setUploadedFileName] = useState("")
+  const [parsedPreview, setParsedPreview] = useState<{ title: string; count: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -109,7 +110,6 @@ export function QuizManager() {
 
   const generateId = () => Math.random().toString(36).substr(2, 9)
 
-  // Quiz CRUD
   const handleAddQuiz = () => {
     setEditingQuiz({
       ...defaultQuiz,
@@ -159,7 +159,6 @@ export function QuizManager() {
     ))
   }
 
-  // Question CRUD
   const handleAddQuestion = (quizId: string) => {
     setEditingQuestion({
       quizId,
@@ -223,35 +222,25 @@ export function QuizManager() {
     toast.success("Question deleted")
   }
 
-  // Parse HTML to extract quiz data
   const parseQuizHtml = (html: string): Quiz | null => {
     try {
-      // Extract title from multiple possible patterns
       let title = ""
       
-      // Try .start-title class - match content inside the tag
-      const startTitleMatch = html.match(/<h1[^>]*class="[^"]*start-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i)
-      if (startTitleMatch) {
-        title = startTitleMatch[1].replace(/<[^>]*>/g, '').trim()
-      }
+      const titlePatterns = [
+        /<h1[^>]*class="[^"]*start-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i,
+        /<div[^>]*class="[^"]*start-title[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+        /<h1[^>]*>([\s\S]*?)<\/h1>/i,
+        /<title[^>]*>([\s\S]*?)<\/title>/i
+      ]
       
-      // Try any h1 with start-title content
-      if (!title) {
-        const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)
-        if (h1Match) {
-          title = h1Match[1].replace(/<[^>]*>/g, '').trim()
+      for (const pattern of titlePatterns) {
+        const match = html.match(pattern)
+        if (match) {
+          title = match[1].replace(/<[^>]*>/g, '').trim()
+          if (title) break
         }
       }
       
-      // Try title tag
-      if (!title) {
-        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
-        if (titleMatch) {
-          title = titleMatch[1].replace(/<[^>]*>/g, '').trim()
-        }
-      }
-      
-      // Clean title - remove other branding
       title = title
         .replace(/Boss_Quiz_Robot/gi, "TechVyro")
         .replace(/LearnWithSumit/gi, "TechVyro")
@@ -260,52 +249,38 @@ export function QuizManager() {
         .replace(/\s+/g, " ")
         .trim() || "Imported Quiz"
 
-      // Try to extract questions from script
       let questionsData: any[] = []
       let timeLimit = 1200
 
-      // Find TIME constant
       const timeMatch = html.match(/const\s+TIME\s*=\s*(\d+)/i)
       if (timeMatch) {
         timeLimit = parseInt(timeMatch[1])
       }
 
-      // Method 1: Try JSON format - const Q = [{...}, {...}]
       const jsonArrayMatch = html.match(/const\s+Q\s*=\s*(\[[\s\S]*?\]);/m)
       if (jsonArrayMatch) {
         try {
-          const jsonStr = jsonArrayMatch[1]
-          questionsData = JSON.parse(jsonStr)
-        } catch (jsonError) {
-          // JSON parse failed, will try regex method
-        }
+          questionsData = JSON.parse(jsonArrayMatch[1])
+        } catch (e) {}
       }
 
-      // Method 2: If JSON failed, try regex for JS object format
       if (questionsData.length === 0) {
         const qArrayMatch = html.match(/const\s+Q\s*=\s*\[([\s\S]*?)\];/m)
         if (qArrayMatch) {
           const arrayContent = qArrayMatch[1]
-          
-          // Parse each question object using regex for template literals
           const questionRegex = /\{\s*question\s*:\s*[`'"]([\s\S]*?)[`'"]\s*,\s*options\s*:\s*\[([\s\S]*?)\]\s*,\s*correct\s*:\s*(\d+)/g
           let match
           
           while ((match = questionRegex.exec(arrayContent)) !== null) {
-            const questionText = match[1].trim()
             const optionsStr = match[2]
-            const correct = parseInt(match[3])
-            
             const optionMatches = optionsStr.match(/[`'"]([^`'"]*)[`'"]/g)
-            const options = optionMatches 
-              ? optionMatches.map(o => o.slice(1, -1).trim())
-              : []
+            const options = optionMatches ? optionMatches.map(o => o.slice(1, -1).trim()) : []
             
             if (options.length >= 2) {
               questionsData.push({
-                question: questionText,
+                question: match[1].trim(),
                 options: options,
-                correct: correct,
+                correct: parseInt(match[3]),
                 marks: 1,
                 explanation: ""
               })
@@ -314,19 +289,16 @@ export function QuizManager() {
         }
       }
 
-      // Method 3: Find individual question/options/correct patterns
       if (questionsData.length === 0) {
-        const questions = [...html.matchAll(/"question"\s*:\s*"([\s\S]*?)"/gi)]
+        const questions = [...html.matchAll(/"question"\s*:\s*"((?:[^"\\]|\\.)*)"/gi)]
         const optionSets = [...html.matchAll(/"options"\s*:\s*\[([\s\S]*?)\]/gi)]
         const corrects = [...html.matchAll(/"correct"\s*:\s*(\d+)/gi)]
         
         for (let i = 0; i < questions.length; i++) {
           if (optionSets[i] && corrects[i]) {
             const optionsStr = optionSets[i][1]
-            const optionMatches = optionsStr.match(/"([^"]*)"/g)
-            const options = optionMatches 
-              ? optionMatches.map(o => o.slice(1, -1).trim())
-              : []
+            const optionMatches = optionsStr.match(/"((?:[^"\\]|\\.)*)"/g)
+            const options = optionMatches ? optionMatches.map(o => o.slice(1, -1).trim()) : []
             
             if (options.length >= 2) {
               questionsData.push({
@@ -341,11 +313,8 @@ export function QuizManager() {
         }
       }
 
-      if (questionsData.length === 0) {
-        return null
-      }
+      if (questionsData.length === 0) return null
 
-      // Convert to our format
       const questions: Question[] = questionsData.map((q: any) => ({
         id: generateId(),
         question: String(q.question || "")
@@ -358,7 +327,6 @@ export function QuizManager() {
         explanation: String(q.explanation || q.solution || "")
       }))
 
-      // Detect category from title
       let category = "General"
       const lowerTitle = title.toLowerCase()
       if (lowerTitle.includes("math") || lowerTitle.includes("algebra") || lowerTitle.includes("geometry") || lowerTitle.includes("inverse") || lowerTitle.includes("trigonometric")) {
@@ -393,7 +361,6 @@ export function QuizManager() {
     }
   }
 
-  // Handle file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -405,15 +372,18 @@ export function QuizManager() {
 
     setIsUploading(true)
     setUploadedFileName(file.name)
+    setParsedPreview(null)
 
     try {
       const text = await file.text()
       setImportHtml(text)
       
-      // Auto-parse and show preview
       const quiz = parseQuizHtml(text)
       if (quiz) {
-        toast.success(`Detected: "${quiz.title}" with ${quiz.questions.length} questions`)
+        setParsedPreview({ title: quiz.title, count: quiz.questions.length })
+        toast.success(`Detected ${quiz.questions.length} questions`)
+      } else {
+        toast.error("Could not detect questions in this file")
       }
     } catch (e) {
       toast.error("Failed to read file")
@@ -422,12 +392,11 @@ export function QuizManager() {
     }
   }
 
-  // Handle import
   const handleImportHtml = () => {
     const quiz = parseQuizHtml(importHtml)
     
     if (!quiz || quiz.questions.length === 0) {
-      toast.error("Could not parse questions from HTML. Make sure it contains valid quiz data.")
+      toast.error("Could not parse questions from HTML")
       return
     }
 
@@ -435,9 +404,17 @@ export function QuizManager() {
     setShowImportDialog(false)
     setImportHtml("")
     setUploadedFileName("")
+    setParsedPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
     
     toast.success(`Quiz imported: "${quiz.title}" with ${quiz.questions.length} questions`)
+  }
+
+  const resetImportDialog = () => {
+    setImportHtml("")
+    setUploadedFileName("")
+    setParsedPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const toggleExpanded = (quizId: string) => {
@@ -457,7 +434,6 @@ export function QuizManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header Actions */}
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={handleAddQuiz}>
           <Plus className="h-4 w-4 mr-2" />
@@ -469,7 +445,6 @@ export function QuizManager() {
         </Button>
       </div>
 
-      {/* Quiz List */}
       <div className="space-y-4">
         {quizzes.length === 0 ? (
           <Card className="p-8 text-center">
@@ -513,9 +488,7 @@ export function QuizManager() {
                         <Clock className="h-3 w-3 mr-1" />
                         {Math.floor(quiz.timeLimit / 60)}m
                       </Badge>
-                      <Badge>
-                        {quiz.questions.length} Q
-                      </Badge>
+                      <Badge>{quiz.questions.length} Q</Badge>
                     </div>
                   </div>
 
@@ -562,7 +535,7 @@ export function QuizManager() {
                         No questions yet. Add your first question.
                       </p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {quiz.questions.map((q, idx) => (
                           <div 
                             key={q.id}
@@ -571,11 +544,10 @@ export function QuizManager() {
                             <span className="font-bold text-primary w-8 shrink-0">
                               Q{idx + 1}
                             </span>
-                            <div 
-                              className="flex-1 text-sm line-clamp-1"
-                              dangerouslySetInnerHTML={{ __html: q.question }}
-                            />
-                            <Badge variant="secondary" className="shrink-0">{q.marks} marks</Badge>
+                            <div className="flex-1 text-sm line-clamp-1 min-w-0">
+                              {q.question.replace(/<[^>]*>/g, '')}
+                            </div>
+                            <Badge variant="secondary" className="shrink-0">{q.marks}m</Badge>
                             <Button 
                               size="sm" 
                               variant="ghost"
@@ -604,7 +576,7 @@ export function QuizManager() {
 
       {/* Quiz Dialog */}
       <Dialog open={showQuizDialog} onOpenChange={setShowQuizDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[95vw]">
           <DialogHeader>
             <DialogTitle>
               {editingQuiz?.createdAt && quizzes.some(q => q.id === editingQuiz.id) 
@@ -658,7 +630,7 @@ export function QuizManager() {
                 </div>
 
                 <div>
-                  <Label>Time Limit (minutes)</Label>
+                  <Label>Time (minutes)</Label>
                   <Input
                     type="number"
                     value={editingQuiz.timeLimit / 60}
@@ -674,13 +646,13 @@ export function QuizManager() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowQuizDialog(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveQuiz}>
               <Save className="h-4 w-4 mr-2" />
-              Save Quiz
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -688,8 +660,8 @@ export function QuizManager() {
 
       {/* Question Dialog */}
       <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-lg w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>
               {editingQuestion && quizzes
                 .find(q => q.id === editingQuestion.quizId)
@@ -700,25 +672,25 @@ export function QuizManager() {
           </DialogHeader>
 
           {editingQuestion && (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1">
               <div>
-                <Label>Question (HTML supported)</Label>
+                <Label>Question</Label>
                 <Textarea
                   value={editingQuestion.question.question}
                   onChange={e => setEditingQuestion({
                     ...editingQuestion,
                     question: { ...editingQuestion.question, question: e.target.value }
                   })}
-                  placeholder="Enter question text..."
-                  rows={4}
+                  placeholder="Enter question..."
+                  rows={3}
                 />
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Label>Options</Label>
                 {editingQuestion.question.options.map((opt, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <span className="w-8 font-bold text-primary">
+                    <span className="w-6 font-bold text-primary text-sm">
                       {String.fromCharCode(65 + idx)}.
                     </span>
                     <Input
@@ -732,6 +704,7 @@ export function QuizManager() {
                         })
                       }}
                       placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                      className="flex-1"
                     />
                     <input
                       type="radio"
@@ -743,25 +716,24 @@ export function QuizManager() {
                       })}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm text-muted-foreground">Correct</span>
                   </div>
                 ))}
+                <p className="text-xs text-muted-foreground">Select the correct answer</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Marks</Label>
-                  <Input
-                    type="number"
-                    value={editingQuestion.question.marks}
-                    onChange={e => setEditingQuestion({
-                      ...editingQuestion,
-                      question: { ...editingQuestion.question, marks: parseInt(e.target.value) || 1 }
-                    })}
-                    min={1}
-                    max={10}
-                  />
-                </div>
+              <div>
+                <Label>Marks</Label>
+                <Input
+                  type="number"
+                  value={editingQuestion.question.marks}
+                  onChange={e => setEditingQuestion({
+                    ...editingQuestion,
+                    question: { ...editingQuestion.question, marks: parseInt(e.target.value) || 1 }
+                  })}
+                  min={1}
+                  max={10}
+                  className="w-24"
+                />
               </div>
 
               <div>
@@ -773,19 +745,19 @@ export function QuizManager() {
                     question: { ...editingQuestion.question, explanation: e.target.value }
                   })}
                   placeholder="Explain the correct answer..."
-                  rows={3}
+                  rows={2}
                 />
               </div>
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t pt-4 gap-2">
             <Button variant="outline" onClick={() => setShowQuestionDialog(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveQuestion}>
               <Save className="h-4 w-4 mr-2" />
-              Save Question
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -794,113 +766,134 @@ export function QuizManager() {
       {/* Import Dialog */}
       <Dialog open={showImportDialog} onOpenChange={(open) => {
         setShowImportDialog(open)
-        if (!open) {
-          setImportHtml("")
-          setUploadedFileName("")
-          if (fileInputRef.current) fileInputRef.current.value = ""
-        }
+        if (!open) resetImportDialog()
       }}>
-        <DialogContent className="max-w-lg sm:max-w-xl w-[95vw] max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-md w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle>Import Quiz from HTML</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto space-y-4 py-2">
+          <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
             <Tabs defaultValue="upload" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="upload">
-                  <FileUp className="h-4 w-4 mr-2" />
-                  Upload File
+                <TabsTrigger value="upload" className="text-xs sm:text-sm">
+                  <FileUp className="h-4 w-4 mr-1.5" />
+                  Upload
                 </TabsTrigger>
-                <TabsTrigger value="paste">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Paste HTML
+                <TabsTrigger value="paste" className="text-xs sm:text-sm">
+                  <FileText className="h-4 w-4 mr-1.5" />
+                  Paste
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="upload" className="space-y-4 mt-4">
-                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+              <TabsContent value="upload" className="space-y-3 mt-4">
+                <div 
+                  className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".html,.htm"
                     onChange={handleFileUpload}
                     className="hidden"
-                    id="html-upload"
                   />
                   
                   {isUploading ? (
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <p className="text-sm text-muted-foreground">Processing file...</p>
+                      <p className="text-sm text-muted-foreground">Processing...</p>
                     </div>
                   ) : uploadedFileName ? (
                     <div className="flex flex-col items-center gap-2">
                       <CheckCircle className="h-8 w-8 text-green-500" />
-                      <p className="font-medium text-sm">{uploadedFileName}</p>
-                      <p className="text-xs text-muted-foreground">File loaded successfully</p>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Choose Different File
-                      </Button>
+                      <p className="font-medium text-sm truncate max-w-full px-2">{uploadedFileName}</p>
+                      <p className="text-xs text-muted-foreground">Click to change file</p>
                     </div>
                   ) : (
-                    <label htmlFor="html-upload" className="cursor-pointer block">
-                      <FileUp className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                      <p className="font-medium text-sm mb-1">Click to upload HTML file</p>
-                      <p className="text-xs text-muted-foreground">
-                        or drag and drop your quiz HTML file here
-                      </p>
-                    </label>
+                    <>
+                      <FileUp className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                      <p className="font-medium text-sm">Click to upload HTML file</p>
+                      <p className="text-xs text-muted-foreground">or drag and drop</p>
+                    </>
                   )}
                 </div>
 
-                {importHtml && (
+                {parsedPreview && (
                   <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                        Ready to import ({importHtml.length.toLocaleString()} characters)
-                      </p>
+                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400 truncate">
+                          {parsedPreview.title}
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-300">
+                          {parsedPreview.count} questions detected
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="paste" className="space-y-4 mt-4">
+              <TabsContent value="paste" className="space-y-3 mt-4">
                 <div>
-                  <Label>Paste HTML Code</Label>
+                  <Label className="text-sm">Paste HTML Code</Label>
                   <Textarea
                     value={importHtml}
-                    onChange={e => setImportHtml(e.target.value)}
+                    onChange={e => {
+                      setImportHtml(e.target.value)
+                      if (e.target.value.length > 100) {
+                        const quiz = parseQuizHtml(e.target.value)
+                        if (quiz) {
+                          setParsedPreview({ title: quiz.title, count: quiz.questions.length })
+                        } else {
+                          setParsedPreview(null)
+                        }
+                      }
+                    }}
                     placeholder="Paste your quiz HTML code here..."
-                    rows={8}
+                    rows={6}
                     className="font-mono text-xs"
                   />
                 </div>
+
+                {parsedPreview && (
+                  <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400 truncate">
+                          {parsedPreview.title}
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-300">
+                          {parsedPreview.count} questions detected
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 
-            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-xs">
-              <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-1.5">
-                Auto-Detection Features
-              </h4>
-              <ul className="text-blue-600 dark:text-blue-300 space-y-0.5">
-                <li>• Extracts quiz title, questions & options</li>
-                <li>• Identifies correct answers & time limit</li>
-                <li>• Auto-categorizes & replaces branding with TechVyro</li>
-              </ul>
+            <div className="bg-muted/50 rounded-lg p-3">
+              <h4 className="font-medium text-sm mb-1">Auto-Detection</h4>
+              <p className="text-xs text-muted-foreground">
+                Extracts title, questions, options, answers, and time limit automatically. 
+                Replaces external branding with TechVyro.
+              </p>
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 border-t pt-4 mt-2">
-            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+          <DialogFooter className="shrink-0 border-t pt-4 gap-2 flex-col sm:flex-row">
+            <Button variant="outline" onClick={() => setShowImportDialog(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleImportHtml} disabled={!importHtml.trim()}>
+            <Button 
+              onClick={handleImportHtml} 
+              disabled={!importHtml.trim() || !parsedPreview}
+              className="w-full sm:w-auto"
+            >
               <Upload className="h-4 w-4 mr-2" />
               Import Quiz
             </Button>
