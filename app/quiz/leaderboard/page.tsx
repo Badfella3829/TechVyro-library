@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { 
   Trophy, Crown, Medal, Star, Clock, Target, 
-  ArrowLeft, Users, Calendar, Trash2
+  ArrowLeft, Users, Calendar
 } from "lucide-react"
 
 interface LeaderboardEntry {
@@ -81,13 +81,6 @@ export default function LeaderboardPage() {
   }
 
   const filteredEntries = getFilteredEntries()
-
-  const clearLeaderboard = () => {
-    if (confirm("Are you sure you want to clear all leaderboard data?")) {
-      localStorage.removeItem(LEADERBOARD_KEY)
-      setEntries([])
-    }
-  }
 
   const getRankStyle = (rank: number) => {
     if (rank === 0) return {
@@ -286,20 +279,7 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* Clear Button (for testing) */}
-        {entries.length > 0 && (
-          <div className="mt-8 text-center">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-muted-foreground hover:text-destructive"
-              onClick={clearLeaderboard}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clear Leaderboard
-            </Button>
-          </div>
-        )}
+
       </main>
 
       <Footer />

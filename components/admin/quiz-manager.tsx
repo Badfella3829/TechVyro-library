@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react"
 import { 
   Plus, Trash2, Edit, ChevronDown, ChevronRight, Clock, FileText,
-  CheckCircle, Save, Upload, Copy, ExternalLink, FileUp, Loader2
+  CheckCircle, Save, Upload, Copy, ExternalLink, FileUp, Loader2,
+  Trophy, Users, Crown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,6 +61,21 @@ interface Quiz {
 }
 
 const STORAGE_KEY = "techvyro-quizzes"
+const LEADERBOARD_KEY = "techvyro-leaderboard"
+
+interface LeaderboardEntry {
+  id: string
+  name: string
+  score: number
+  percentage: number
+  correct: number
+  wrong: number
+  skipped: number
+  totalTime: number
+  quizId: string
+  quizTitle: string
+  timestamp: string
+}
 
 const defaultQuiz: Omit<Quiz, "id" | "createdAt"> = {
   title: "",
@@ -80,11 +96,13 @@ const defaultQuestion: Omit<Question, "id"> = {
 
 export function QuizManager() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
   const [editingQuestion, setEditingQuestion] = useState<{ quizId: string; question: Question } | null>(null)
   const [showQuizDialog, setShowQuizDialog] = useState(false)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showLeaderboardDialog, setShowLeaderboardDialog] = useState(false)
   const [importHtml, setImportHtml] = useState("")
   const [expandedQuizzes, setExpandedQuizzes] = useState<Set<string>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
@@ -97,6 +115,15 @@ export function QuizManager() {
     if (saved) {
       try {
         setQuizzes(JSON.parse(saved))
+      } catch (e) {
+        // Silent fail
+      }
+    }
+    
+    const savedLeaderboard = localStorage.getItem(LEADERBOARD_KEY)
+    if (savedLeaderboard) {
+      try {
+        setLeaderboard(JSON.parse(savedLeaderboard))
       } catch (e) {
         // Failed to parse
       }
@@ -442,6 +469,10 @@ export function QuizManager() {
         <Button variant="outline" onClick={() => setShowImportDialog(true)}>
           <Upload className="h-4 w-4 mr-2" />
           Import HTML
+        </Button>
+        <Button variant="outline" onClick={() => setShowLeaderboardDialog(true)}>
+          <Trophy className="h-4 w-4 mr-2" />
+          Leaderboard ({leaderboard.length})
         </Button>
       </div>
 
@@ -896,6 +927,91 @@ export function QuizManager() {
             >
               <Upload className="h-4 w-4 mr-2" />
               Import Quiz
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leaderboard Management Dialog */}
+      <Dialog open={showLeaderboardDialog} onOpenChange={setShowLeaderboardDialog}>
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              Leaderboard Management
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {leaderboard.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">No leaderboard entries yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {leaderboard.map((entry, index) => (
+                  <div 
+                    key={entry.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      index === 0 ? "bg-yellow-500/10 border-yellow-500/30" :
+                      index === 1 ? "bg-gray-400/10 border-gray-400/30" :
+                      index === 2 ? "bg-amber-700/10 border-amber-700/30" :
+                      "bg-card border-border/50"
+                    }`}
+                  >
+                    <div className="shrink-0 w-8 text-center">
+                      {index === 0 ? <Crown className="h-5 w-5 text-yellow-500 mx-auto" /> :
+                       <span className="font-bold text-muted-foreground">{index + 1}</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{entry.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{entry.quizTitle}</p>
+                    </div>
+                    <div className="text-right shrink-0 mr-2">
+                      <p className="font-bold text-primary">{entry.percentage}%</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(entry.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        const updated = leaderboard.filter(e => e.id !== entry.id)
+                        setLeaderboard(updated)
+                        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(updated))
+                        toast.success("Entry deleted")
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0 border-t pt-4 gap-2 flex-col sm:flex-row">
+            {leaderboard.length > 0 && (
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  if (confirm("Are you sure you want to clear all leaderboard entries? This cannot be undone.")) {
+                    setLeaderboard([])
+                    localStorage.removeItem(LEADERBOARD_KEY)
+                    toast.success("Leaderboard cleared")
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowLeaderboardDialog(false)} className="w-full sm:w-auto">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

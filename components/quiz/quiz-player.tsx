@@ -70,6 +70,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
   const [showNameInput, setShowNameInput] = useState(false)
   const [playerName, setPlayerName] = useState("")
   const [savedToLeaderboard, setSavedToLeaderboard] = useState(false)
+  const [topLeaderboard, setTopLeaderboard] = useState<LeaderboardEntry[]>([])
   
   const questionStartRef = useRef<number>(Date.now())
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -102,13 +103,28 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
     }
   }, [started, submitted])
 
-  // Theme persistence
+  // Theme persistence and load leaderboard
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("quiz-theme")
       if (savedTheme === "dark") setDarkMode(true)
+      
+      // Load top leaderboard entries for this quiz
+      try {
+        const saved = localStorage.getItem(LEADERBOARD_KEY)
+        if (saved) {
+          const all: LeaderboardEntry[] = JSON.parse(saved)
+          const forThisQuiz = all
+            .filter(e => !quizId || e.quizId === quizId)
+            .sort((a, b) => b.percentage - a.percentage)
+            .slice(0, 5)
+          setTopLeaderboard(forThisQuiz)
+        }
+      } catch (e) {
+        // Silent fail
+      }
     }
-  }, [])
+  }, [quizId])
 
   // Keyboard navigation
   useEffect(() => {
@@ -312,6 +328,13 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
       localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(trimmed))
       setSavedToLeaderboard(true)
       setShowNameInput(false)
+      
+      // Refresh top leaderboard
+      const forThisQuiz = trimmed
+        .filter(e => !quizId || e.quizId === quizId)
+        .sort((a, b) => b.percentage - a.percentage)
+        .slice(0, 5)
+      setTopLeaderboard(forThisQuiz)
     } catch (e) {
       // Silent fail
     }
@@ -520,6 +543,45 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle className="h-5 w-5" />
                 <span className="font-medium">Score saved to leaderboard!</span>
+              </div>
+            </div>
+          )}
+
+          {/* Mini Leaderboard */}
+          {topLeaderboard.length > 0 && (
+            <div className={`p-4 rounded-xl mb-6 ${darkMode ? "bg-gray-700" : "bg-muted/50"}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Top Performers</h3>
+              </div>
+              <div className="space-y-2">
+                {topLeaderboard.map((entry, index) => (
+                  <div 
+                    key={entry.id}
+                    className={`flex items-center gap-3 p-2 rounded-lg ${
+                      index === 0 ? "bg-yellow-500/20" :
+                      index === 1 ? "bg-gray-400/20" :
+                      index === 2 ? "bg-amber-700/20" :
+                      darkMode ? "bg-gray-600/50" : "bg-background/50"
+                    }`}
+                  >
+                    <span className={`w-6 text-center font-bold text-sm ${
+                      index === 0 ? "text-yellow-500" :
+                      index === 1 ? "text-gray-400" :
+                      index === 2 ? "text-amber-700" :
+                      "text-muted-foreground"
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 text-sm truncate">{entry.name}</span>
+                    <span className={`font-bold text-sm ${
+                      entry.percentage >= 70 ? "text-green-500" :
+                      entry.percentage >= 40 ? "text-amber-500" : "text-red-500"
+                    }`}>
+                      {entry.percentage}%
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
