@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { 
   Plus, Trash2, Edit, ChevronDown, ChevronRight, Clock, FileText,
   CheckCircle, Save, Upload, Copy, ExternalLink, FileUp, Loader2,
-  Trophy, Users, Crown
+  Trophy, Users, Crown, Tag, Eye, EyeOff, Globe, Lock, Link2,
+  FolderOpen, Zap, X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +50,8 @@ interface Question {
   explanation: string
 }
 
+type VisibilityType = "public" | "unlisted" | "private"
+
 interface Quiz {
   id: string
   title: string
@@ -58,6 +61,10 @@ interface Quiz {
   questions: Question[]
   enabled: boolean
   createdAt: string
+  tags?: string[]
+  visibility?: VisibilityType
+  section?: string
+  difficulty?: "easy" | "medium" | "hard"
 }
 
 const STORAGE_KEY = "techvyro-quizzes"
@@ -83,8 +90,19 @@ const defaultQuiz: Omit<Quiz, "id" | "createdAt"> = {
   category: "Mathematics",
   timeLimit: 1200,
   questions: [],
-  enabled: true
+  enabled: true,
+  tags: [],
+  visibility: "public",
+  section: "General",
+  difficulty: "medium"
 }
+
+const SECTIONS = ["General", "Competitive Exams", "School", "College", "Practice"]
+const DIFFICULTIES = [
+  { value: "easy", label: "Easy", color: "bg-green-500" },
+  { value: "medium", label: "Medium", color: "bg-amber-500" },
+  { value: "hard", label: "Hard", color: "bg-red-500" }
+]
 
 const defaultQuestion: Omit<Question, "id"> = {
   question: "",
@@ -461,32 +479,32 @@ export function QuizManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleAddQuiz}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Quiz
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <Button onClick={handleAddQuiz} size="sm" className="text-xs sm:text-sm h-8 sm:h-9">
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          <span className="hidden xs:inline">Create</span> Quiz
         </Button>
-        <Button variant="outline" onClick={() => setShowImportDialog(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Import HTML
+        <Button variant="outline" onClick={() => setShowImportDialog(true)} size="sm" className="text-xs sm:text-sm h-8 sm:h-9">
+          <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          <span className="hidden xs:inline">Import</span> HTML
         </Button>
-        <Button variant="outline" onClick={() => setShowLeaderboardDialog(true)}>
-          <Trophy className="h-4 w-4 mr-2" />
-          Leaderboard ({leaderboard.length})
+        <Button variant="outline" onClick={() => setShowLeaderboardDialog(true)} size="sm" className="text-xs sm:text-sm h-8 sm:h-9">
+          <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Leaderboard</span> ({leaderboard.length})
         </Button>
       </div>
 
       <div className="space-y-4">
         {quizzes.length === 0 ? (
-          <Card className="p-8 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">No Quizzes Yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+          <Card className="p-4 sm:p-8 text-center">
+            <FileText className="h-8 w-8 sm:h-12 sm:w-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+            <h3 className="font-semibold mb-2 text-sm sm:text-base">No Quizzes Yet</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
               Create your first quiz or import from HTML file
             </p>
-            <div className="flex justify-center gap-3">
-              <Button onClick={handleAddQuiz}>Create Quiz</Button>
-              <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <div className="flex flex-col xs:flex-row justify-center gap-2 sm:gap-3">
+              <Button onClick={handleAddQuiz} size="sm" className="text-xs sm:text-sm">Create Quiz</Button>
+              <Button variant="outline" onClick={() => setShowImportDialog(true)} size="sm" className="text-xs sm:text-sm">
                 Import HTML
               </Button>
             </div>
@@ -499,99 +517,102 @@ export function QuizManager() {
               onOpenChange={() => toggleExpanded(quiz.id)}
             >
               <Card className={!quiz.enabled ? "opacity-60" : ""}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <CollapsibleTrigger className="flex items-center gap-2 text-left">
+                <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                    <CollapsibleTrigger className="flex items-start gap-2 text-left w-full sm:w-auto">
                       {expandedQuizzes.has(quiz.id) ? (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0 mt-1" />
                       ) : (
-                        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0 mt-1" />
                       )}
-                      <div>
-                        <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                        <CardDescription>{quiz.description}</CardDescription>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-sm sm:text-lg line-clamp-2">{quiz.title}</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm line-clamp-1">{quiz.description}</CardDescription>
                       </div>
                     </CollapsibleTrigger>
                     
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline">{quiz.category}</Badge>
-                      <Badge variant="secondary">
-                        <Clock className="h-3 w-3 mr-1" />
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap ml-6 sm:ml-0">
+                      <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">{quiz.category}</Badge>
+                      <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
+                        <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                         {Math.floor(quiz.timeLimit / 60)}m
                       </Badge>
-                      <Badge>{quiz.questions.length} Q</Badge>
+                      <Badge className="text-[10px] sm:text-xs px-1.5 sm:px-2">{quiz.questions.length} Q</Badge>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <div className="flex items-center gap-2 mt-2 sm:mt-3 flex-wrap">
                     <Switch 
                       checked={quiz.enabled}
                       onCheckedChange={() => handleToggleQuiz(quiz.id)}
+                      className="scale-90 sm:scale-100"
                     />
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       {quiz.enabled ? "Active" : "Disabled"}
                     </span>
                     
-                    <div className="ml-auto flex items-center gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => copyQuizLink(quiz.id)}>
-                        <Copy className="h-4 w-4" />
+                    <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => copyQuizLink(quiz.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                        <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" asChild>
+                      <Button size="sm" variant="ghost" asChild className="h-7 w-7 sm:h-8 sm:w-8 p-0">
                         <a href={`/quiz/${quiz.id}`} target="_blank">
-                          <ExternalLink className="h-4 w-4" />
+                          <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </a>
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleEditQuiz(quiz)}>
-                        <Edit className="h-4 w-4" />
+                      <Button size="sm" variant="ghost" onClick={() => handleEditQuiz(quiz)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                        <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteQuiz(quiz.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteQuiz(quiz.id)} className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
 
                 <CollapsibleContent>
-                  <CardContent className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-semibold">Questions</h4>
-                      <Button size="sm" onClick={() => handleAddQuestion(quiz.id)}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Question
+                  <CardContent className="border-t pt-3 sm:pt-4 px-3 sm:px-6">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h4 className="font-semibold text-sm sm:text-base">Questions</h4>
+                      <Button size="sm" onClick={() => handleAddQuestion(quiz.id)} className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3">
+                        <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                        <span className="hidden xs:inline">Add</span> Question
                       </Button>
                     </div>
 
                     {quiz.questions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
+                      <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
                         No questions yet. Add your first question.
                       </p>
                     ) : (
-                      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      <div className="space-y-1.5 sm:space-y-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto">
                         {quiz.questions.map((q, idx) => (
                           <div 
                             key={q.id}
-                            className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
+                            className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-muted/50 rounded-lg"
                           >
-                            <span className="font-bold text-primary w-8 shrink-0">
+                            <span className="font-bold text-primary w-6 sm:w-8 shrink-0 text-xs sm:text-sm">
                               Q{idx + 1}
                             </span>
-                            <div className="flex-1 text-sm line-clamp-1 min-w-0">
+                            <div className="flex-1 text-xs sm:text-sm line-clamp-1 min-w-0">
                               {q.question.replace(/<[^>]*>/g, '')}
                             </div>
-                            <Badge variant="secondary" className="shrink-0">{q.marks}m</Badge>
+                            <Badge variant="secondary" className="shrink-0 text-[10px] sm:text-xs px-1 sm:px-2">{q.marks}m</Badge>
                             <Button 
                               size="sm" 
                               variant="ghost"
                               onClick={() => handleEditQuestion(quiz.id, q)}
+                              className="h-6 w-6 sm:h-8 sm:w-8 p-0"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                             <Button 
                               size="sm" 
                               variant="ghost"
                               onClick={() => handleDeleteQuestion(quiz.id, q.id)}
+                              className="h-6 w-6 sm:h-8 sm:w-8 p-0"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
                             </Button>
                           </div>
                         ))}
@@ -607,9 +628,9 @@ export function QuizManager() {
 
       {/* Quiz Dialog */}
       <Dialog open={showQuizDialog} onOpenChange={setShowQuizDialog}>
-        <DialogContent className="max-w-lg w-[95vw]">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-lg w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-sm sm:text-base">
               {editingQuiz?.createdAt && quizzes.some(q => q.id === editingQuiz.id) 
                 ? "Edit Quiz" 
                 : "Create Quiz"}
@@ -617,34 +638,39 @@ export function QuizManager() {
           </DialogHeader>
 
           {editingQuiz && (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 min-h-0 pr-1">
               <div>
-                <Label>Title</Label>
+                <Label className="text-xs sm:text-sm">Title</Label>
                 <Input
                   value={editingQuiz.title}
                   onChange={e => setEditingQuiz({ ...editingQuiz, title: e.target.value })}
                   placeholder="Quiz title"
+                  className="text-sm"
                 />
               </div>
               
               <div>
-                <Label>Description</Label>
+                <Label className="text-xs sm:text-sm">Description</Label>
                 <Textarea
                   value={editingQuiz.description}
                   onChange={e => setEditingQuiz({ ...editingQuiz, description: e.target.value })}
                   placeholder="Quiz description"
                   rows={2}
+                  className="text-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <div>
-                  <Label>Category</Label>
+                  <Label className="text-xs sm:text-sm flex items-center gap-1">
+                    <FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    Category
+                  </Label>
                   <Select
                     value={editingQuiz.category}
                     onValueChange={v => setEditingQuiz({ ...editingQuiz, category: v })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -661,7 +687,10 @@ export function QuizManager() {
                 </div>
 
                 <div>
-                  <Label>Time (minutes)</Label>
+                  <Label className="text-xs sm:text-sm flex items-center gap-1">
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    Time (min)
+                  </Label>
                   <Input
                     type="number"
                     value={editingQuiz.timeLimit / 60}
@@ -671,19 +700,146 @@ export function QuizManager() {
                     })}
                     min={5}
                     max={180}
+                    className="text-sm h-8 sm:h-10"
                   />
                 </div>
+              </div>
+
+              {/* Section & Difficulty */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                <div>
+                  <Label className="text-xs sm:text-sm flex items-center gap-1">
+                    <FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    Section
+                  </Label>
+                  <Select
+                    value={editingQuiz.section || "General"}
+                    onValueChange={v => setEditingQuiz({ ...editingQuiz, section: v })}
+                  >
+                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SECTIONS.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs sm:text-sm flex items-center gap-1">
+                    <Zap className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    Difficulty
+                  </Label>
+                  <Select
+                    value={editingQuiz.difficulty || "medium"}
+                    onValueChange={v => setEditingQuiz({ ...editingQuiz, difficulty: v as "easy" | "medium" | "hard" })}
+                  >
+                    <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DIFFICULTIES.map(d => (
+                        <SelectItem key={d.value} value={d.value}>
+                          <span className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${d.color}`} />
+                            {d.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Visibility */}
+              <div>
+                <Label className="text-xs sm:text-sm flex items-center gap-1">
+                  <Eye className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                  Visibility
+                </Label>
+                <Select
+                  value={editingQuiz.visibility || "public"}
+                  onValueChange={v => setEditingQuiz({ ...editingQuiz, visibility: v as VisibilityType })}
+                >
+                  <SelectTrigger className="text-xs sm:text-sm h-8 sm:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">
+                      <span className="flex items-center gap-2">
+                        <Globe className="h-3 w-3" />
+                        Public - Anyone can access
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="unlisted">
+                      <span className="flex items-center gap-2">
+                        <Link2 className="h-3 w-3" />
+                        Unlisted - Only with link
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="private">
+                      <span className="flex items-center gap-2">
+                        <Lock className="h-3 w-3" />
+                        Private - Admin only
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <Label className="text-xs sm:text-sm flex items-center gap-1">
+                  <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                  Tags
+                </Label>
+                <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 rounded-lg border border-border bg-background">
+                  {(editingQuiz.tags || []).map((tag, i) => (
+                    <Badge 
+                      key={i} 
+                      variant="secondary" 
+                      className="gap-1 pr-1 cursor-pointer hover:bg-destructive/20 text-[10px] sm:text-xs"
+                      onClick={() => setEditingQuiz({
+                        ...editingQuiz,
+                        tags: (editingQuiz.tags || []).filter((_, idx) => idx !== i)
+                      })}
+                    >
+                      #{tag}
+                      <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  ))}
+                  <Input
+                    placeholder="Add tag..."
+                    className="flex-1 min-w-[80px] border-0 shadow-none h-6 px-1 focus-visible:ring-0 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault()
+                        const val = (e.target as HTMLInputElement).value.trim().toLowerCase()
+                        if (val && !(editingQuiz.tags || []).includes(val)) {
+                          setEditingQuiz({
+                            ...editingQuiz,
+                            tags: [...(editingQuiz.tags || []), val]
+                          })
+                        }
+                        ;(e.target as HTMLInputElement).value = ""
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Press Enter to add tags</p>
               </div>
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowQuizDialog(false)}>
+          <DialogFooter className="shrink-0 border-t pt-3 sm:pt-4 gap-2 flex-col sm:flex-row">
+            <Button variant="outline" onClick={() => setShowQuizDialog(false)} size="sm" className="w-full sm:w-auto text-xs sm:text-sm">
               Cancel
             </Button>
-            <Button onClick={handleSaveQuiz}>
-              <Save className="h-4 w-4 mr-2" />
-              Save
+            <Button onClick={handleSaveQuiz} size="sm" className="w-full sm:w-auto text-xs sm:text-sm">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Quiz
             </Button>
           </DialogFooter>
         </DialogContent>
