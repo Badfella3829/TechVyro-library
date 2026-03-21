@@ -113,6 +113,7 @@ export default function QuizPage() {
   return (
     <QuizPlayer
       title={quiz.title}
+      quizId={quiz.id}
       questions={transformedQuestions}
       timeLimit={quiz.timeLimit}
     />

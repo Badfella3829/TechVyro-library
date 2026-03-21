@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { 
   Clock, ChevronLeft, ChevronRight, Star, Trash2, Send, 
   Moon, Sun, CheckCircle, XCircle, Eye, FileText, RotateCcw,
-  AlertTriangle, Home
+  AlertTriangle, Home, Trophy
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -23,9 +23,26 @@ interface Question {
 
 interface QuizPlayerProps {
   title: string
+  quizId?: string
   questions: Question[]
   timeLimit: number
   onComplete?: (result: QuizResult) => void
+}
+
+const LEADERBOARD_KEY = "techvyro-leaderboard"
+
+interface LeaderboardEntry {
+  id: string
+  name: string
+  score: number
+  percentage: number
+  correct: number
+  wrong: number
+  skipped: number
+  totalTime: number
+  quizId: string
+  quizTitle: string
+  timestamp: string
 }
 
 interface QuizResult {
@@ -38,7 +55,7 @@ interface QuizResult {
   questionTimes: number[]
 }
 
-export function QuizPlayer({ title, questions, timeLimit, onComplete }: QuizPlayerProps) {
+export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: QuizPlayerProps) {
   const [started, setStarted] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
@@ -50,6 +67,9 @@ export function QuizPlayer({ title, questions, timeLimit, onComplete }: QuizPlay
   const [reviewMode, setReviewMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
+  const [showNameInput, setShowNameInput] = useState(false)
+  const [playerName, setPlayerName] = useState("")
+  const [savedToLeaderboard, setSavedToLeaderboard] = useState(false)
   
   const questionStartRef = useRef<number>(Date.now())
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -262,6 +282,41 @@ export function QuizPlayer({ title, questions, timeLimit, onComplete }: QuizPlay
     setCurrentIndex(0)
   }
 
+  const saveToLeaderboard = () => {
+    if (!playerName.trim() || savedToLeaderboard) return
+    
+    const { score, correct, wrong, skipped } = calculateResults()
+    const percentage = Math.round((correct / questions.length) * 100)
+    const totalTime = timeLimit - timeRemaining
+    
+    const entry: LeaderboardEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: playerName.trim(),
+      score,
+      percentage,
+      correct,
+      wrong,
+      skipped,
+      totalTime,
+      quizId: quizId || "unknown",
+      quizTitle: title,
+      timestamp: new Date().toISOString()
+    }
+    
+    try {
+      const existing = localStorage.getItem(LEADERBOARD_KEY)
+      const entries: LeaderboardEntry[] = existing ? JSON.parse(existing) : []
+      entries.unshift(entry)
+      // Keep only last 100 entries
+      const trimmed = entries.slice(0, 100)
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(trimmed))
+      setSavedToLeaderboard(true)
+      setShowNameInput(false)
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
   const handleRestart = () => {
     setStarted(false)
     setSubmitted(false)
@@ -421,6 +476,54 @@ export function QuizPlayer({ title, questions, timeLimit, onComplete }: QuizPlay
             </div>
           </div>
 
+          {/* Save to Leaderboard */}
+          {!savedToLeaderboard && (
+            <div className={`p-4 rounded-xl mb-6 ${darkMode ? "bg-gray-700" : "bg-primary/5 border border-primary/20"}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Save to Leaderboard</h3>
+              </div>
+              {showNameInput ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="Enter your name"
+                    className={`flex-1 px-4 py-2 rounded-lg border text-sm ${
+                      darkMode 
+                        ? "bg-gray-600 border-gray-500 text-white placeholder:text-gray-400" 
+                        : "bg-background border-border"
+                    }`}
+                    onKeyDown={(e) => e.key === "Enter" && saveToLeaderboard()}
+                    autoFocus
+                  />
+                  <Button onClick={saveToLeaderboard} disabled={!playerName.trim()}>
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowNameInput(true)}
+                >
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Add My Score to Leaderboard
+                </Button>
+              )}
+            </div>
+          )}
+          
+          {savedToLeaderboard && (
+            <div className={`p-4 rounded-xl mb-6 ${darkMode ? "bg-green-900/30" : "bg-green-50 border border-green-200"}`}>
+              <div className="flex items-center gap-2 text-green-600">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Score saved to leaderboard!</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Button 
               variant="outline" 
@@ -439,9 +542,13 @@ export function QuizPlayer({ title, questions, timeLimit, onComplete }: QuizPlay
             </Button>
           </div>
           
-          <div className="mt-4 text-center">
-            <Link href="/quiz" className="text-sm text-primary hover:underline">
-              Browse more quizzes
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+            <Link href="/quiz" className="text-primary hover:underline">
+              More Quizzes
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link href="/quiz/leaderboard" className="text-primary hover:underline">
+              View Leaderboard
             </Link>
           </div>
         </Card>

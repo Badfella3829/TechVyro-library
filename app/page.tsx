@@ -5,6 +5,7 @@ import { HeroSection } from "@/components/home/hero-section"
 import { StatsSection } from "@/components/home/stats-section"
 import { FeaturedSection } from "@/components/home/featured-section"
 import { CategoriesSection } from "@/components/home/categories-section"
+import { QuizSection } from "@/components/home/quiz-section"
 import { TestimonialsSection } from "@/components/home/testimonials-section"
 import { PDFGrid } from "@/components/pdf-grid"
 import { Footer } from "@/components/footer"
@@ -103,7 +104,10 @@ export default async function HomePage() {
           <CategoriesSection categories={categories} pdfsByCategory={pdfsByCategory} />
         )}
 
-        {/* 5. ALL PDFs GRID */}
+        {/* 5. QUIZ SECTION */}
+        <QuizSection />
+
+        {/* 6. ALL PDFs GRID */}
         <section id="content" className="py-12 sm:py-16 lg:py-20 bg-background">
           <div className="container mx-auto px-4">
             <div className="text-center mb-8 sm:mb-12">
