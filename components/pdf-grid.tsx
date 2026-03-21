@@ -490,9 +490,8 @@ export function PDFGrid({ pdfs, categories }: PDFGridProps) {
             )}
           </div>
         )}
-      </section>
 
-      {/* PDF Grid */}
+        {/* PDF Grid */}
       {paginatedPdfs.length === 0 ? (
         <Empty
           icon={FileText}
@@ -555,6 +554,7 @@ export function PDFGrid({ pdfs, categories }: PDFGridProps) {
           </Button>
         </div>
       )}
+      </section>
     </div>
   )
 }
