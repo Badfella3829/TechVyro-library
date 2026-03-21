@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { toast } from "sonner"
 import type { Category } from "@/lib/types"
+import { InlineStructureEditor } from "./inline-structure-editor"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB in bytes
 const MAX_PARALLEL_UPLOADS = 8
@@ -509,6 +510,36 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   <Sparkles className="h-4 w-4" />
                   Apply to All Pending Files
                 </Button>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
+
+      {/* Content Structure Editor */}
+      {entries.length > 0 && (
+        <Collapsible>
+          <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-muted/10 overflow-hidden">
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50"
+              >
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-accent/10">
+                    <FolderPlus className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-accent" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-foreground text-xs sm:text-sm">Edit Content Structure</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Create folders, categories, sections</p>
+                  </div>
+                </div>
+                <ChevronDown className="h-4 w-4 transition-transform ui-expanded:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-3 sm:p-4 border-t border-border/50">
+                <InlineStructureEditor compact />
               </div>
             </CollapsibleContent>
           </div>

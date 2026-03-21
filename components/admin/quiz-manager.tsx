@@ -41,6 +41,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { toast } from "sonner"
+import { InlineStructureEditor } from "./inline-structure-editor"
 
 interface Question {
   id: string
@@ -1258,6 +1259,36 @@ export function QuizManager() {
                       <Button size="sm" onClick={applyGlobalSettings} className="w-full h-8 text-xs">
                         Apply to All Files
                       </Button>
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            )}
+
+            {/* Content Structure Editor */}
+            {uploadEntries.length > 0 && (
+              <Collapsible>
+                <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-muted/10 overflow-hidden">
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full flex items-center justify-between p-2 sm:p-3 h-auto hover:bg-muted/50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-accent/10">
+                          <FolderOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent" />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-medium text-foreground text-[11px] sm:text-xs">Edit Content Structure</p>
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">Folders, categories, sections</p>
+                        </div>
+                      </div>
+                      <ChevronDown className="h-3.5 w-3.5 transition-transform ui-expanded:rotate-180" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="p-2 sm:p-3 border-t border-border/50">
+                      <InlineStructureEditor compact />
                     </div>
                   </CollapsibleContent>
                 </div>
