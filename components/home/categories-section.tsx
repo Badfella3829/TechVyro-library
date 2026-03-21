@@ -1,18 +1,78 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { FolderOpen, ChevronRight, FileText, TrendingUp } from "lucide-react"
+import { 
+  FolderOpen, ChevronRight, ChevronDown, FileText, TrendingUp,
+  Folder, BookOpen, Code, Calculator, FlaskConical, Globe, Briefcase, 
+  Heart, Music, Camera, Palette, Cpu, Database, Server, Shield, Zap, Layers
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { Category, PDF } from "@/lib/types"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import type { Category, PDF, ContentFolder } from "@/lib/types"
 
 interface CategoriesSectionProps {
   categories: Category[]
   pdfsByCategory: Record<string, PDF[]>
 }
 
+const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Folder, FolderOpen, BookOpen, Code, Calculator, FlaskConical, Globe, 
+  Briefcase, Heart, Music, Camera, Palette, Cpu, Database, Server, Shield, Zap, FileText, Layers
+}
+
+function getIcon(iconName: string) {
+  return ICONS[iconName] || Folder
+}
+
 export function CategoriesSection({ categories, pdfsByCategory }: CategoriesSectionProps) {
-  if (categories.length === 0) return null
+  const [folders, setFolders] = useState<ContentFolder[]>([])
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const saved = localStorage.getItem("techvyro_folders")
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        setFolders(parsed.filter((f: ContentFolder) => f.enabled))
+        // Auto-expand first folder
+        if (parsed.length > 0) {
+          setExpandedFolders(new Set([parsed[0].id]))
+        }
+      } catch (e) {
+        setFolders([])
+      }
+    }
+  }, [])
+
+  const toggleFolder = (id: string) => {
+    const newSet = new Set(expandedFolders)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setExpandedFolders(newSet)
+  }
+
+  const toggleCategory = (id: string) => {
+    const newSet = new Set(expandedCategories)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setExpandedCategories(newSet)
+  }
+
+  // If no admin folders, show database categories
+  const hasFolders = folders.length > 0
 
   return (
     <section className="py-16 sm:py-20 lg:py-24 bg-background">
@@ -31,79 +91,209 @@ export function CategoriesSection({ categories, pdfsByCategory }: CategoriesSect
           </p>
         </div>
 
-        {/* Categories Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {categories.map((category) => {
-            const categoryPdfs = pdfsByCategory[category.id] || []
-            const pdfCount = categoryPdfs.length
-            const totalDownloads = categoryPdfs.reduce((acc, pdf) => acc + pdf.download_count, 0)
-            
-            return (
-              <Link key={category.id} href={`/category/${category.slug}`}>
-                <Card className="group h-full overflow-hidden border-border/50 bg-card hover:shadow-xl hover:border-primary/30 hover:-translate-y-2 transition-all duration-300">
-                  {/* Category Header with Color */}
-                  <div 
-                    className="h-2 w-full"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  
-                  <CardContent className="p-5 sm:p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Icon */}
+        {/* Admin Folder Structure */}
+        {hasFolders ? (
+          <div className="space-y-4 max-w-5xl mx-auto">
+            {folders.map((folder) => {
+              const FolderIcon = getIcon(folder.icon)
+              const isExpanded = expandedFolders.has(folder.id)
+              const enabledCategories = folder.categories.filter(c => c.enabled)
+              const totalSections = enabledCategories.reduce((acc, cat) => acc + cat.sections.filter(s => s.enabled).length, 0)
+              const totalPdfs = enabledCategories.reduce((acc, cat) => 
+                acc + cat.sections.filter(s => s.enabled).reduce((sAcc, sec) => sAcc + sec.pdfCount, 0), 0
+              )
+
+              return (
+                <Card key={folder.id} className="border-border/50 overflow-hidden hover:shadow-lg transition-all">
+                  <Collapsible open={isExpanded} onOpenChange={() => toggleFolder(folder.id)}>
+                    <CollapsibleTrigger asChild>
                       <div 
-                        className="shrink-0 h-12 w-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md"
-                        style={{ backgroundColor: category.color }}
+                        className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-muted/30 transition-colors"
+                        style={{ borderLeft: `4px solid ${folder.color}` }}
                       >
-                        <FolderOpen className="h-6 w-6 text-white" />
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground text-base sm:text-lg truncate group-hover:text-primary transition-colors">
-                          {category.name}
-                        </h3>
-                        
-                        {/* Stats */}
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <FileText className="h-3.5 w-3.5" />
-                            <span>{pdfCount} PDFs</span>
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div 
+                            className="h-11 w-11 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center shadow-md"
+                            style={{ backgroundColor: folder.color }}
+                          >
+                            <FolderIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                           </div>
-                          {totalDownloads > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <TrendingUp className="h-3.5 w-3.5 text-green-500" />
-                              <span>{totalDownloads.toLocaleString()}</span>
-                            </div>
-                          )}
+                          <div>
+                            <h3 className="font-semibold text-foreground text-base sm:text-lg flex items-center gap-2">
+                              {folder.name}
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                              {enabledCategories.length} categories | {totalSections} sections | {totalPdfs} PDFs
+                            </p>
+                          </div>
                         </div>
+                        <Badge 
+                          variant="secondary" 
+                          className="hidden sm:flex"
+                          style={{ backgroundColor: folder.color + '20', color: folder.color }}
+                        >
+                          {enabledCategories.length} Categories
+                        </Badge>
+                      </div>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pl-6 sm:pl-8 space-y-3">
+                        {enabledCategories.map((category) => {
+                          const CategoryIcon = getIcon(category.icon)
+                          const isCatExpanded = expandedCategories.has(category.id)
+                          const enabledSections = category.sections.filter(s => s.enabled)
+
+                          return (
+                            <Collapsible 
+                              key={category.id} 
+                              open={isCatExpanded} 
+                              onOpenChange={() => toggleCategory(category.id)}
+                            >
+                              <div 
+                                className="border rounded-lg overflow-hidden"
+                                style={{ borderColor: category.color + '40' }}
+                              >
+                                <CollapsibleTrigger asChild>
+                                  <div className="flex items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                      <div 
+                                        className="h-9 w-9 rounded-lg flex items-center justify-center"
+                                        style={{ backgroundColor: category.color + '20' }}
+                                      >
+                                        <CategoryIcon className="h-4 w-4" style={{ color: category.color }} />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-sm sm:text-base flex items-center gap-2">
+                                          {category.name}
+                                          {isCatExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {enabledSections.length} sections
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Badge variant="outline" className="text-xs">
+                                      {enabledSections.reduce((acc, s) => acc + s.pdfCount, 0)} PDFs
+                                    </Badge>
+                                  </div>
+                                </CollapsibleTrigger>
+
+                                <CollapsibleContent>
+                                  <div className="px-3 pb-3 sm:px-4 sm:pb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {enabledSections.map((section) => {
+                                      const SectionIcon = getIcon(section.icon)
+
+                                      return (
+                                        <div
+                                          key={section.id}
+                                          className="flex items-center justify-between p-3 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer group"
+                                        >
+                                          <div className="flex items-center gap-2.5">
+                                            <SectionIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            <div>
+                                              <p className="text-sm font-medium group-hover:text-primary transition-colors">
+                                                {section.name}
+                                              </p>
+                                              {section.description && (
+                                                <p className="text-[10px] text-muted-foreground line-clamp-1">
+                                                  {section.description}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                                              {section.pdfCount} PDFs
+                                            </Badge>
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </CollapsibleContent>
+                              </div>
+                            </Collapsible>
+                          )
+                        })}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </Card>
+              )
+            })}
+          </div>
+        ) : (
+          /* Fallback: Database Categories Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            {categories.map((category) => {
+              const categoryPdfs = pdfsByCategory[category.id] || []
+              const pdfCount = categoryPdfs.length
+              const totalDownloads = categoryPdfs.reduce((acc, pdf) => acc + pdf.download_count, 0)
+              
+              return (
+                <Link key={category.id} href={`/category/${category.slug}`}>
+                  <Card className="group h-full overflow-hidden border-border/50 bg-card hover:shadow-xl hover:border-primary/30 hover:-translate-y-2 transition-all duration-300">
+                    <div 
+                      className="h-2 w-full"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    
+                    <CardContent className="p-5 sm:p-6">
+                      <div className="flex items-start gap-4">
+                        <div 
+                          className="shrink-0 h-12 w-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md"
+                          style={{ backgroundColor: category.color }}
+                        >
+                          <FolderOpen className="h-6 w-6 text-white" />
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground text-base sm:text-lg truncate group-hover:text-primary transition-colors">
+                            {category.name}
+                          </h3>
+                          
+                          <div className="flex items-center gap-3 mt-2">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <FileText className="h-3.5 w-3.5" />
+                              <span>{pdfCount} PDFs</span>
+                            </div>
+                            {totalDownloads > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <TrendingUp className="h-3.5 w-3.5 text-green-500" />
+                                <span>{totalDownloads.toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
                       </div>
                       
-                      {/* Arrow */}
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
-                    </div>
-                    
-                    {/* Recent PDFs Preview */}
-                    {categoryPdfs.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-border/50">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
-                          Recent Additions
-                        </p>
-                        <div className="space-y-1.5">
-                          {categoryPdfs.slice(0, 2).map((pdf) => (
-                            <div key={pdf.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
-                              <span className="truncate">{pdf.title}</span>
-                            </div>
-                          ))}
+                      {categoryPdfs.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                            Recent Additions
+                          </p>
+                          <div className="space-y-1.5">
+                            {categoryPdfs.slice(0, 2).map((pdf) => (
+                              <div key={pdf.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                                <span className="truncate">{pdf.title}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })}
-        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </div>
     </section>
   )
