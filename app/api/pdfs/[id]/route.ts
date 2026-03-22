@@ -28,13 +28,51 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, category_id } = body
+    const { title, description, category_id, file_path, file_size } = body
 
+    const supabase = createAdminClient()
+
+    // File replacement mode — no title required
+    if (file_path) {
+      // Fetch current file_path to delete old file from storage
+      const { data: current } = await supabase
+        .from("pdfs")
+        .select("file_path")
+        .eq("id", id)
+        .single()
+
+      if (current?.file_path && current.file_path !== file_path) {
+        await supabase.storage.from("pdfs").remove([current.file_path]).catch(() => {})
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        file_path,
+        file_size: file_size || null,
+        updated_at: new Date().toISOString(),
+      }
+      if (title?.trim()) updatePayload.title = title.trim()
+      if (description !== undefined) updatePayload.description = description?.trim() || null
+      if (category_id !== undefined) updatePayload.category_id = category_id || null
+
+      const { data, error } = await supabase
+        .from("pdfs")
+        .update(updatePayload)
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("[v0] PDF file-replace error:", error)
+        return NextResponse.json({ error: "Failed to replace file" }, { status: 500 })
+      }
+
+      return NextResponse.json(data)
+    }
+
+    // Metadata-only update
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
-
-    const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from("pdfs")

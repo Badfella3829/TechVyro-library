@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Trash2, ExternalLink, FileText, Pencil, Check, X, Eye, Loader2, Search, Filter, Download, FolderInput, FileDown, MoreHorizontal } from "lucide-react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { Trash2, ExternalLink, FileText, Pencil, Check, X, Eye, Loader2, Search, Filter, Download, FolderInput, FileDown, MoreHorizontal, UploadCloud } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -41,18 +41,58 @@ interface EditState {
   category_id: string
 }
 
-export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFListProps) {
+export function PDFList({ pdfs: initialPdfs, categories, loading: initialLoading, onDelete, onUpdate }: PDFListProps) {
+  const [internalPdfs, setInternalPdfs] = useState<PDF[]>(initialPdfs)
+  const [internalLoading, setInternalLoading] = useState(initialLoading)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editState, setEditState] = useState<EditState>({ title: "", category_id: "" })
   const [saving, setSaving] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [bulkMoving, setBulkMoving] = useState(false)
-  
+  const [replacingId, setReplacingId] = useState<string | null>(null)
+  const replaceFileInputRef = useRef<HTMLInputElement>(null)
+  const replaceTargetIdRef = useRef<string | null>(null)
+
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("")
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name" | "downloads" | "views">("newest")
+
+  // ── Self-fetch PDFs with auto-refresh ──────────────────────────────
+  const refreshPdfs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pdfs")
+      if (!res.ok) return
+      const data = await res.json()
+      setInternalPdfs(data.pdfs || [])
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    async function initialFetch() {
+      setInternalLoading(true)
+      try {
+        const res = await fetch("/api/pdfs")
+        if (!res.ok) return
+        const data = await res.json()
+        if (mounted) setInternalPdfs(data.pdfs || [])
+      } catch {}
+      finally { if (mounted) setInternalLoading(false) }
+    }
+    initialFetch()
+    const interval = setInterval(refreshPdfs, 2 * 60 * 1000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [refreshPdfs])
+
+  // Sync when parent forces a refresh
+  useEffect(() => {
+    if (!initialLoading) setInternalPdfs(initialPdfs)
+  }, [initialPdfs, initialLoading])
+
+  const pdfs = internalPdfs
+  const loading = internalLoading
 
   // Filter and sort PDFs
   const filteredPdfs = useMemo(() => {
@@ -144,6 +184,7 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
       toast.success(`${data.deleted} PDF${data.deleted > 1 ? "s" : ""} deleted successfully!`)
       setSelectedIds(new Set())
       onDelete()
+      refreshPdfs()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete PDFs")
     } finally {
@@ -176,6 +217,7 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
       toast.success(`${data.updated} PDF${data.updated > 1 ? "s" : ""} moved to ${categoryName}!`)
       setSelectedIds(new Set())
       onUpdate()
+      refreshPdfs()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to move PDFs")
     } finally {
@@ -275,6 +317,7 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
       toast.success("PDF updated!")
       setEditingId(null)
       onUpdate()
+      refreshPdfs()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update PDF")
     } finally {
@@ -299,8 +342,76 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
 
       toast.success("PDF deleted successfully!")
       onDelete()
+      refreshPdfs()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete PDF")
+    }
+  }
+
+  function triggerReplaceFile(pdfId: string) {
+    replaceTargetIdRef.current = pdfId
+    replaceFileInputRef.current?.click()
+  }
+
+  async function handleReplaceFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    const targetId = replaceTargetIdRef.current
+    replaceTargetIdRef.current = null
+    e.target.value = ""
+
+    if (!file || !targetId) return
+
+    const MAX_FILE_SIZE = 50 * 1024 * 1024
+    if (file.size > MAX_FILE_SIZE) { toast.error("File too large (max 50MB)"); return }
+    if (file.type !== "application/pdf" && file.type !== "text/html" && !file.name.match(/\.(pdf|html?)$/i)) {
+      toast.error("Only PDF or HTML files are allowed"); return
+    }
+
+    setReplacingId(targetId)
+    const toastId = toast.loading("Replacing file...")
+
+    try {
+      const token = sessionStorage.getItem("admin_token")
+
+      // Step 1: Get signed upload URL
+      const urlRes = await fetch("/api/pdfs/get-upload-url", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || "application/pdf",
+        }),
+      })
+      if (!urlRes.ok) throw new Error("Failed to get upload URL")
+      const { signedUrl, filePath } = await urlRes.json()
+
+      // Step 2: Upload file via XHR
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.addEventListener("load", () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Upload failed")))
+        xhr.addEventListener("error", () => reject(new Error("Network error")))
+        xhr.open("PUT", signedUrl)
+        xhr.setRequestHeader("Content-Type", file.type || "application/pdf")
+        xhr.send(file)
+      })
+
+      // Step 3: Update DB with new file_path and file_size (deletes old file via PATCH route)
+      const patchRes = await fetch(`/api/pdfs/${targetId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, file_size: file.size }),
+      })
+      if (!patchRes.ok) throw new Error("Failed to update PDF record")
+
+      toast.dismiss(toastId)
+      toast.success("File replaced successfully!")
+      onUpdate()
+      refreshPdfs()
+    } catch (error) {
+      toast.dismiss(toastId)
+      toast.error(error instanceof Error ? error.message : "Failed to replace file")
+    } finally {
+      setReplacingId(null)
     }
   }
 
@@ -335,6 +446,15 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
 
   return (
     <div className="space-y-5">
+      {/* Hidden file input for file replacement */}
+      <input
+        ref={replaceFileInputRef}
+        type="file"
+        accept=".pdf,.html,.htm,application/pdf,text/html"
+        className="hidden"
+        onChange={handleReplaceFileChange}
+      />
+
       {/* Search and Filter Bar - Enhanced */}
       <div className="flex flex-col sm:flex-row gap-3 p-4 rounded-xl bg-muted/30 border border-border/50">
         <div className="relative flex-1 group">
@@ -613,8 +733,19 @@ export function PDFList({ pdfs, categories, loading, onDelete, onUpdate }: PDFLi
                     </>
                   ) : (
                     <>
-                      <Button variant="ghost" size="icon" onClick={() => startEdit(pdf)} className="h-8 w-8">
+                      <Button variant="ghost" size="icon" onClick={() => startEdit(pdf)} className="h-8 w-8" title="Edit title & category">
                         <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-500/10 hover:text-blue-600"
+                        title="Replace file"
+                        disabled={replacingId === pdf.id}
+                        onClick={() => triggerReplaceFile(pdf.id)}
+                      >
+                        {replacingId === pdf.id
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <UploadCloud className="h-4 w-4" />
+                        }
                       </Button>
                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                         <a href={`/pdf/${pdf.id}`} target="_blank" rel="noopener noreferrer">

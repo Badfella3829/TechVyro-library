@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { 
   Upload, FileText, X, CheckCircle, Loader2, AlertCircle, 
   Zap, Files, FolderPlus, Tag, Eye, Calendar, Clock, Lock, 
   Globe, Link2, FileCheck, Sparkles, ChevronDown, ChevronUp, Settings2,
-  Hash, Download, Shield, RefreshCw, Type, Replace, ArrowRight
+  Hash, Download, Shield, RefreshCw, Type, Replace, ArrowRight, Code, Shuffle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,7 +62,16 @@ function generateId() {
 }
 
 function titleFromFilename(name: string) {
-  return name.replace(/\.pdf$/i, "").replace(/[-_]+/g, " ").trim()
+  return name.replace(/\.(pdf|html?)$/i, "").replace(/[-_]+/g, " ").trim()
+}
+
+function isHtmlFile(file: File) {
+  return file.type === "text/html" || file.name.toLowerCase().endsWith(".html") || file.name.toLowerCase().endsWith(".htm")
+}
+
+function getFileContentType(file: File) {
+  if (isHtmlFile(file)) return "text/html"
+  return "application/pdf"
 }
 
 function slugify(text: string) {
@@ -80,8 +89,9 @@ const visibilityOptions: { value: VisibilityType; label: string; icon: React.Rea
   { value: "private", label: "Private", icon: <Lock className="h-3.5 w-3.5" />, description: "Only admin can view" },
 ]
 
-export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
+export function PDFUploadForm({ categories: initialCategories, onSuccess }: PDFUploadFormProps) {
   const [entries, setEntries] = useState<FileEntry[]>([])
+  const [categoriesList, setCategoriesList] = useState<Category[]>(initialCategories)
   const [globalCategory, setGlobalCategory] = useState<string>("")
   const [globalVisibility, setGlobalVisibility] = useState<VisibilityType>("public")
   const [globalTags, setGlobalTags] = useState<string[]>([])
@@ -99,14 +109,38 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
   const [bulkReplace, setBulkReplace] = useState("")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const replaceFileInputRef = useRef<HTMLInputElement>(null)
+  const replaceTargetIdRef = useRef<string | null>(null)
+
+  // ── Self-fetch categories with auto-refresh ──────────────────────
+  useEffect(() => {
+    let mounted = true
+    async function fetchCategories() {
+      try {
+        const res = await fetch("/api/categories")
+        if (!res.ok) return
+        const data = await res.json()
+        if (mounted && data.categories?.length > 0) setCategoriesList(data.categories)
+      } catch {}
+    }
+    fetchCategories()
+    const interval = setInterval(fetchCategories, 2 * 60 * 1000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [])
+
+  useEffect(() => {
+    if (initialCategories.length > 0) setCategoriesList(initialCategories)
+  }, [initialCategories])
 
   function addFiles(files: FileList | File[]) {
     const allFiles = Array.from(files)
-    const pdfs = allFiles.filter((f) => f.type === "application/pdf")
-    if (pdfs.length === 0) { toast.error("Only PDF files are allowed"); return }
+    const validTypes = allFiles.filter((f) =>
+      f.type === "application/pdf" || isHtmlFile(f)
+    )
+    if (validTypes.length === 0) { toast.error("Only PDF or HTML files are allowed"); return }
 
-    const oversizedFiles = pdfs.filter(f => f.size > MAX_FILE_SIZE)
-    const validFiles = pdfs.filter(f => f.size <= MAX_FILE_SIZE)
+    const oversizedFiles = validTypes.filter(f => f.size > MAX_FILE_SIZE)
+    const validFiles = validTypes.filter(f => f.size <= MAX_FILE_SIZE)
 
     if (oversizedFiles.length > 0) {
       toast.error(`Files exceeding 50MB limit: ${oversizedFiles.map(f => f.name).join(", ")}`, {
@@ -139,6 +173,45 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
     if (validFiles.length > 0 && oversizedFiles.length > 0) {
       toast.info(`Added ${validFiles.length} file(s). ${oversizedFiles.length} file(s) skipped (over 50MB).`)
     }
+  }
+
+  function replaceEntryFile(entryId: string, newFile: File) {
+    if (newFile.size > MAX_FILE_SIZE) {
+      toast.error(`File too large (max 50MB): ${newFile.name}`)
+      return
+    }
+    if (newFile.type !== "application/pdf" && !isHtmlFile(newFile)) {
+      toast.error("Only PDF or HTML files are allowed")
+      return
+    }
+    const newTitle = titleFromFilename(newFile.name)
+    updateEntry(entryId, {
+      file: newFile,
+      title: newTitle,
+      customSlug: slugify(newTitle),
+      status: "pending",
+      error: undefined,
+      isDuplicate: false,
+      progress: 0,
+      speedKBps: 0,
+      etaSecs: 0,
+    })
+    toast.success(`File replaced: ${newFile.name}`)
+  }
+
+  function handleReplaceFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    const targetId = replaceTargetIdRef.current
+    if (file && targetId) {
+      replaceEntryFile(targetId, file)
+    }
+    replaceTargetIdRef.current = null
+    e.target.value = ""
+  }
+
+  function triggerReplaceFile(entryId: string) {
+    replaceTargetIdRef.current = entryId
+    replaceFileInputRef.current?.click()
   }
 
   function handleDrag(e: React.DragEvent) {
@@ -266,7 +339,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
       const urlRes = await fetch("/api/pdfs/get-upload-url", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: entry.file.name, contentType: "application/pdf" }),
+        body: JSON.stringify({ filename: entry.file.name, contentType: getFileContentType(entry.file) }),
       })
       if (!urlRes.ok) {
         const d = await urlRes.json().catch(() => ({}))
@@ -300,7 +373,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         xhr.addEventListener("error", () => reject(new Error("Network error during upload")))
         xhr.addEventListener("abort", () => reject(new Error("Upload was cancelled")))
         xhr.open("PUT", signedUrl)
-        xhr.setRequestHeader("Content-Type", "application/pdf")
+        xhr.setRequestHeader("Content-Type", getFileContentType(entry.file))
         xhr.send(entry.file)
       })
 
@@ -402,12 +475,13 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         onClick={() => fileInputRef.current?.click()}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,80,200,0.05),transparent_70%)] rounded-xl sm:rounded-2xl pointer-events-none" />
-        <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" multiple onChange={handleFileChange} className="hidden" />
+        <input ref={fileInputRef} type="file" accept=".pdf,.html,.htm,application/pdf,text/html" multiple onChange={handleFileChange} className="hidden" />
+        <input ref={replaceFileInputRef} type="file" accept=".pdf,.html,.htm,application/pdf,text/html" onChange={handleReplaceFileChange} className="hidden" />
         <div className="relative">
           <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300">
             <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           </div>
-          <p className="font-semibold text-sm sm:text-lg text-foreground">Drop PDFs here or click to select</p>
+          <p className="font-semibold text-sm sm:text-lg text-foreground">Drop PDF or HTML files here or click to select</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Multiple files supported (max 50MB each)</p>
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
             <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-primary bg-primary/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
@@ -454,7 +528,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     <Select value={globalCategory} onValueChange={setGlobalCategory}>
                       <SelectTrigger className="h-10"><SelectValue placeholder="Select category" /></SelectTrigger>
                       <SelectContent>
-                        {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
+                        {[...categoriesList].sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
                             <span className="flex items-center gap-2">
                               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: cat.color }} />
@@ -716,7 +790,10 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   )}
                   {entry.status === "pending" && (
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      {isHtmlFile(entry.file)
+                        ? <Code className="h-5 w-5 text-blue-500" />
+                        : <FileText className="h-5 w-5 text-muted-foreground" />
+                      }
                     </div>
                   )}
                 </div>
@@ -734,6 +811,11 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     <p className="text-xs text-muted-foreground truncate">
                       {entry.file.name} &middot; {(entry.file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
+                    {isHtmlFile(entry.file) && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-400 text-blue-600 gap-1">
+                        <Code className="h-2.5 w-2.5" /> HTML
+                      </Badge>
+                    )}
                     {entry.tags.length > 0 && (
                       <div className="flex gap-1">
                         {entry.tags.slice(0, 3).map((tag) => (
@@ -831,6 +913,14 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                 {/* Actions */}
                 {entry.status === "pending" && (
                   <div className="flex items-center gap-1">
+                    <Button
+                      type="button" variant="ghost" size="icon"
+                      className="h-9 w-9 hover:bg-blue-500/10 hover:text-blue-600"
+                      title="Replace file"
+                      onClick={(e) => { e.stopPropagation(); triggerReplaceFile(entry.id) }}
+                    >
+                      <Shuffle className="h-4 w-4" />
+                    </Button>
                     <Button type="button" variant="ghost" size="icon" className="h-9 w-9 hover:bg-primary/10"
                       onClick={() => updateEntry(entry.id, { showAdvanced: !entry.showAdvanced })}>
                       <Settings2 className="h-4 w-4" />
@@ -842,10 +932,20 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   </div>
                 )}
                 {(entry.status === "error") && (
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive shrink-0"
-                    onClick={() => removeEntry(entry.id)}>
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button" variant="ghost" size="icon"
+                      className="h-9 w-9 hover:bg-blue-500/10 hover:text-blue-600"
+                      title="Replace file"
+                      onClick={(e) => { e.stopPropagation(); triggerReplaceFile(entry.id) }}
+                    >
+                      <Shuffle className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive shrink-0"
+                      onClick={() => removeEntry(entry.id)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -1000,7 +1100,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
             ) : (
               <span className="flex items-center gap-2">
                 <Zap className="h-5 w-5" />
-                Upload {pendingCount} PDF{pendingCount !== 1 ? "s" : ""}
+                Upload {pendingCount} file{pendingCount !== 1 ? "s" : ""}
               </span>
             )}
           </Button>
