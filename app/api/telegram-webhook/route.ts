@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
     const supabase = createAdminClient()
 
-    // Get admin's telegram chat ID to verify it's really admin
+    // Verify message is from admin's Telegram chat
     const { data: settings } = await supabase
       .from("site_settings")
       .select("value")
@@ -21,19 +21,106 @@ export async function POST(req: Request) {
     const adminChatId = String((settings?.value as Record<string, string>)?.telegramChatId || "")
     const fromChatId = String(message.chat?.id || "")
 
-    // Only process messages from admin's chat
     if (!adminChatId || fromChatId !== adminChatId) {
       return NextResponse.json({ ok: true })
     }
 
     const text: string = message.text.trim()
+    const token = process.env.TELEGRAM_BOT_TOKEN!
 
-    // Find session to reply to:
-    // Priority 1: admin used Telegram "Reply" feature → match by telegram_message_id
-    // Priority 2: most recent active session
-    let sessionId: string | null = null
+    // ── Method 1: /reply SESSION_ID message text ──────────────
+    const manualReplyMatch = text.match(/^\/reply\s+([A-Z0-9]{6,8})\s+(.+)$/is)
+    if (manualReplyMatch) {
+      const targetSession = manualReplyMatch[1].toUpperCase()
+      const replyText = manualReplyMatch[2].trim()
 
+      const { data: session } = await supabase
+        .from("admin_chat_sessions")
+        .select("id, student_name")
+        .eq("id", targetSession)
+        .maybeSingle()
+
+      if (!session) {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: fromChatId,
+            text: `❌ Session <b>#${targetSession}</b> nahi mila. Check karo session ID sahi hai.`,
+            parse_mode: "HTML",
+          }),
+        })
+        return NextResponse.json({ ok: true })
+      }
+
+      await supabase.from("admin_chat_messages").insert({
+        session_id: session.id,
+        sender: "admin",
+        message: replyText,
+      })
+      await supabase
+        .from("admin_chat_sessions")
+        .update({ last_message_at: new Date().toISOString() })
+        .eq("id", session.id)
+
+      // Confirm to admin
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: fromChatId,
+          text: `✅ Reply bhej diya → <b>${session.student_name}</b> (#${session.id})`,
+          parse_mode: "HTML",
+        }),
+      })
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Method 2: /sessions — list active sessions ─────────────
+    if (text === "/sessions" || text === "/active") {
+      const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+      const { data: sessions } = await supabase
+        .from("admin_chat_sessions")
+        .select("id, student_name, last_message_at")
+        .gte("last_message_at", cutoff)
+        .order("last_message_at", { ascending: false })
+
+      if (!sessions?.length) {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: fromChatId,
+            text: "ℹ️ Abhi koi active chat session nahi hai.",
+          }),
+        })
+        return NextResponse.json({ ok: true })
+      }
+
+      const list = sessions
+        .map((s) => {
+          const ago = Math.round((Date.now() - new Date(s.last_message_at).getTime()) / 60000)
+          return `• <b>${s.student_name}</b> (#${s.id}) — ${ago} min pehle`
+        })
+        .join("\n")
+
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: fromChatId,
+          text: `📋 <b>Active Sessions (last 30 min):</b>\n\n${list}\n\n<i>Reply karne ke liye: message pe Reply karein\nYa type karein: /reply SESSION_ID aapka reply</i>`,
+          parse_mode: "HTML",
+        }),
+      })
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Method 3: Telegram native Reply feature ────────────────
     const replyToMsgId: number | null = message.reply_to_message?.message_id || null
+    let sessionId: string | null = null
 
     if (replyToMsgId) {
       const { data: origMsg } = await supabase
@@ -45,29 +132,26 @@ export async function POST(req: Request) {
       if (origMsg?.session_id) sessionId = origMsg.session_id
     }
 
-    // Fallback: most recent session (last 30 min)
+    // ── No session found: show help instead of guessing ────────
     if (!sessionId) {
-      const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-      const { data: recent } = await supabase
-        .from("admin_chat_sessions")
-        .select("id")
-        .gte("last_message_at", cutoff)
-        .order("last_message_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (recent?.id) sessionId = recent.id
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: fromChatId,
+          text: `⚠️ Kisi student ka message pe <b>Reply</b> karein, ya use karein:\n\n<code>/reply SESSION_ID aapka message</code>\n\nActive sessions dekhne ke liye: <code>/sessions</code>`,
+          parse_mode: "HTML",
+        }),
+      })
+      return NextResponse.json({ ok: true })
     }
 
-    if (!sessionId) return NextResponse.json({ ok: true })
-
-    // Save admin's reply to DB
+    // Save admin reply
     await supabase.from("admin_chat_messages").insert({
       session_id: sessionId,
       sender: "admin",
       message: text,
     })
-
     await supabase
       .from("admin_chat_sessions")
       .update({ last_message_at: new Date().toISOString() })
