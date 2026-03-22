@@ -3,21 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Bell, Users, Zap, Gift } from 'lucide-react';
 
-const STORAGE_KEY = 'techvyro_whatsapp_popup_session';
-
 export function WhatsAppPopup() {
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  const shouldShowPopup = useCallback(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return !sessionStorage.getItem(STORAGE_KEY);
-    } catch {
-      return true;
-    }
-  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -27,22 +16,16 @@ export function WhatsAppPopup() {
     if (!mounted) return;
 
     const timer = setTimeout(() => {
-      if (shouldShowPopup()) {
-        setIsOpen(true);
+      setIsOpen(true);
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setIsVisible(true);
-          });
+          setIsVisible(true);
         });
-        try {
-          sessionStorage.setItem(STORAGE_KEY, '1');
-        } catch {
-        }
-      }
+      });
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [mounted, shouldShowPopup]);
+  }, [mounted]);
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
