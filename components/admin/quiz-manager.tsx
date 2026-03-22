@@ -7,7 +7,7 @@ import {
   Trophy, Users, Crown, Tag, Eye, EyeOff, Globe, Lock, Link2,
   FolderOpen, FolderPlus, Zap, X, Settings2, Files, AlertCircle, CheckSquare,
   Square, MoveRight, ChevronUp, ArrowUp, ArrowDown, Search, Filter,
-  Download, BarChart2, Shuffle, Minus, RefreshCw, Sparkles
+  Download, BarChart2, Shuffle, Minus, RefreshCw, Sparkles, Type, Replace, ArrowRight
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
@@ -188,6 +188,44 @@ export function QuizManager() {
     setGlobalTagInput("")
   }
   function removeGlobalTag(tag: string) { setGlobalSettings(p => ({ ...p, tags: p.tags.filter(t => t !== tag) })) }
+  const [showBulkTitleEditor, setShowBulkTitleEditor] = useState(false)
+  const [bulkPrefix, setBulkPrefix] = useState("")
+  const [bulkSuffix, setBulkSuffix] = useState("")
+  const [bulkFind, setBulkFind] = useState("")
+  const [bulkReplace, setBulkReplace] = useState("")
+  function applyBulkPrefix() {
+    if (!bulkPrefix.trim()) return
+    setUploadEntries(prev => prev.map(e =>
+      e.status === "ready" && e.quiz
+        ? { ...e, quiz: { ...e.quiz, title: bulkPrefix + e.quiz.title } }
+        : e
+    ))
+    toast.success(`Prefix "${bulkPrefix}" added to all ready titles`)
+    setBulkPrefix("")
+  }
+  function applyBulkSuffix() {
+    if (!bulkSuffix.trim()) return
+    setUploadEntries(prev => prev.map(e =>
+      e.status === "ready" && e.quiz
+        ? { ...e, quiz: { ...e.quiz, title: e.quiz.title + bulkSuffix } }
+        : e
+    ))
+    toast.success(`Suffix "${bulkSuffix}" added to all ready titles`)
+    setBulkSuffix("")
+  }
+  function applyBulkFindReplace() {
+    if (!bulkFind.trim()) return
+    let count = 0
+    setUploadEntries(prev => prev.map(e => {
+      if (e.status !== "ready" || !e.quiz) return e
+      if (!e.quiz.title.includes(bulkFind)) return e
+      const newTitle = e.quiz.title.split(bulkFind).join(bulkReplace)
+      count++
+      return { ...e, quiz: { ...e.quiz, title: newTitle } }
+    }))
+    toast.success(count > 0 ? `Replaced in ${count} title(s)` : `"${bulkFind}" not found in any title`)
+    setBulkFind(""); setBulkReplace("")
+  }
   const [importTab, setImportTab] = useState<"html"|"json">("html")
   const [showPasteHtml, setShowPasteHtml] = useState(false)
 
@@ -916,6 +954,7 @@ export function QuizManager() {
     setGlobalTagInput("")
     setGlobalSettings(p => ({ ...p, tags: [], structureLocation: { folderId: "", categoryId: "", sectionId: "" } }))
     setShowGlobalSettings(false)
+    setShowBulkTitleEditor(false); setBulkPrefix(""); setBulkSuffix(""); setBulkFind(""); setBulkReplace("")
     setJsonEntries([]); setPasteJsonText(""); setShowPasteJson(false); setShowJsonGlobalSettings(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
     if (jsonImportRef.current) jsonImportRef.current.value = ""
@@ -1648,6 +1687,89 @@ export function QuizManager() {
                           <Button onClick={applyGlobalSettings} className="w-full gap-2" variant="outline">
                             <Sparkles className="h-4 w-4" /> Apply to All Pending Files
                           </Button>
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                )}
+
+                {/* ── Bulk Title Editor ─────────────────────────────── */}
+                {uploadEntries.filter(e => e.status === "ready").length > 1 && (
+                  <Collapsible open={showBulkTitleEditor} onOpenChange={setShowBulkTitleEditor}>
+                    <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-muted/10 overflow-hidden">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                              <Type className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-medium text-foreground text-xs sm:text-sm">Bulk Title Editor</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">Add prefix/suffix or find &amp; replace in all titles</p>
+                            </div>
+                          </div>
+                          {showBulkTitleEditor ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="p-4 pt-0 space-y-4 border-t border-border/50">
+
+                          {/* Prefix */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Prefix</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                value={bulkPrefix}
+                                onChange={e => setBulkPrefix(e.target.value)}
+                                placeholder='e.g. "Lecture 1 - " or "[2024] "'
+                                className="h-9 flex-1"
+                                onKeyDown={e => { if (e.key === "Enter") applyBulkPrefix() }}
+                              />
+                              <Button variant="outline" className="h-9 gap-1.5 whitespace-nowrap" onClick={applyBulkPrefix} disabled={!bulkPrefix.trim()}>
+                                <ArrowRight className="h-3.5 w-3.5" /> Add Prefix
+                              </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Prepends text to the start of every ready title</p>
+                          </div>
+
+                          {/* Suffix */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Suffix</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                value={bulkSuffix}
+                                onChange={e => setBulkSuffix(e.target.value)}
+                                placeholder='e.g. " v2" or " (Updated)"'
+                                className="h-9 flex-1"
+                                onKeyDown={e => { if (e.key === "Enter") applyBulkSuffix() }}
+                              />
+                              <Button variant="outline" className="h-9 gap-1.5 whitespace-nowrap" onClick={applyBulkSuffix} disabled={!bulkSuffix.trim()}>
+                                <ArrowRight className="h-3.5 w-3.5" /> Add Suffix
+                              </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Appends text to the end of every ready title</p>
+                          </div>
+
+                          {/* Find & Replace */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Find &amp; Replace</Label>
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/70 select-none">FIND</span>
+                                <Input value={bulkFind} onChange={e => setBulkFind(e.target.value)} placeholder="Text to find..." className="h-9 pl-10" />
+                              </div>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/70 select-none">WITH</span>
+                                <Input value={bulkReplace} onChange={e => setBulkReplace(e.target.value)} placeholder="Replace with..." className="h-9 pl-10"
+                                  onKeyDown={e => { if (e.key === "Enter") applyBulkFindReplace() }} />
+                              </div>
+                            </div>
+                            <Button variant="outline" className="w-full h-9 gap-1.5" onClick={applyBulkFindReplace} disabled={!bulkFind.trim()}>
+                              <Replace className="h-3.5 w-3.5" /> Apply Find &amp; Replace
+                            </Button>
+                            <p className="text-[11px] text-muted-foreground">Replaces all occurrences in every ready title. Leave "Replace with" blank to delete the found text.</p>
+                          </div>
+
                         </div>
                       </CollapsibleContent>
                     </div>
