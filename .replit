@@ -1,2 +1,12 @@
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_SUPABASE_URL = "https://ggszntmesnjceytrcfhd.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_SAv-nm0GgKxnp-kxTHk_-w_x_fqY6Wf"
