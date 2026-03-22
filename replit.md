@@ -15,6 +15,24 @@ pnpm run dev
 ```
 Port: 5000
 
+## API-Based Content Management
+
+All website content is controlled via the admin panel and stored in Supabase `site_settings`:
+
+| Setting Key | Controls |
+|-------------|---------|
+| `general_settings` | Site name, tagline, contact email, main website URL, all social media URLs (Instagram, Facebook, WhatsApp, Telegram), WhatsApp popup on/off |
+| `hero_settings` | Rotating taglines, trust stat badges, badge text, hero description, button labels |
+| `testimonials` | Testimonials list (enabled/disabled) |
+| `watermark` | PDF watermark config |
+| `security` | Download rate limits |
+
+Components that fetch from API:
+- `components/footer.tsx` — fetches `general_settings` for social links, contact info
+- `components/home/hero-section.tsx` — fetches `hero_settings` + `general_settings` (WhatsApp URL)
+- `components/whatsapp-popup.tsx` — fetches `general_settings` for channel URL and popup toggle
+- `app/page.tsx` — fetches `general_settings` for bottom CTA WhatsApp link
+
 ## Architecture
 
 ### Admin Authentication

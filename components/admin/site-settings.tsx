@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { 
   Settings, Shield, Globe, Bell, Palette, Database, 
   Save, RefreshCw, ExternalLink, Check, Copy, Eye, EyeOff,
-  FileText, Download, Lock, Unlock, Info, AlertTriangle
+  FileText, Download, Lock, Unlock, Info, AlertTriangle,
+  Instagram, Facebook, MessageCircle, Send, Layout, Plus, Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,9 +26,24 @@ interface SettingSection {
 
 const sections: SettingSection[] = [
   { id: "general", title: "General", description: "Basic site configuration", icon: Settings, color: "primary" },
+  { id: "social", title: "Social Links", description: "Social media & channel URLs", icon: Globe, color: "blue" },
+  { id: "hero", title: "Hero Content", description: "Homepage hero section text", icon: Layout, color: "violet" },
   { id: "watermark", title: "Watermark", description: "PDF watermark settings", icon: FileText, color: "blue" },
   { id: "security", title: "Security", description: "Access and protection", icon: Shield, color: "green" },
   { id: "notifications", title: "Notifications", description: "Alert preferences", icon: Bell, color: "amber" },
+]
+
+const DEFAULT_TAGLINES = [
+  "Explore Curated Knowledge",
+  "Download Quality PDFs",
+  "Learn Without Limits",
+  "Expand Your Horizons",
+]
+
+const DEFAULT_TRUST_STATS = [
+  "10,000+ Students",
+  "Updated Daily",
+  "4.9/5 Rating",
 ]
 
 export function SiteSettings() {
@@ -36,30 +52,36 @@ export function SiteSettings() {
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Settings state
   const [settings, setSettings] = useState({
-    // General
     siteName: "TechVyro",
     siteTagline: "PDF Library",
     contactEmail: "techvyro@gmail.com",
     mainWebsite: "https://www.techvyro.in/",
-    
-    // Watermark
+    instagramUrl: "https://www.instagram.com/techvyro",
+    facebookUrl: "https://www.facebook.com/share/187KsWWacM/?mibextid=wwXIfr",
+    whatsappChannelUrl: "https://whatsapp.com/channel/0029Vadk2XHLSmbX3oEVmX37",
+    telegramUrl: "https://t.me/techvyro",
+    whatsappPopupEnabled: true,
     watermarkEnabled: true,
     watermarkText: "TechVyro PDF Library",
     watermarkOpacity: 30,
     watermarkPosition: "diagonal",
-    
-    // Security
     downloadRequiresView: true,
     rateLimit: 10,
     adminPasswordLength: 8,
-    
-    // Notifications
     emailOnNewReview: true,
     emailOnLowRating: true,
     emailOnHighDownloads: true,
     downloadThreshold: 100,
+  })
+
+  const [heroSettings, setHeroSettings] = useState({
+    taglines: [...DEFAULT_TAGLINES],
+    trustStats: [...DEFAULT_TRUST_STATS],
+    badgeText: "Free Educational Resources",
+    description: "Discover our comprehensive collection of educational PDFs. Browse by categories, search documents instantly, and download with premium watermark protection.",
+    heroBtnText: "Browse Library",
+    whatsappBtnText: "Join Updates",
   })
 
   function getAdminToken() {
@@ -76,17 +98,31 @@ export function SiteSettings() {
       .then(r => r.json())
       .then(data => { if (data.value) setSettings(s => ({ ...s, ...data.value })) })
       .catch(() => {})
+
+    fetch("/api/site-settings?key=hero_settings")
+      .then(r => r.json())
+      .then(data => {
+        if (data.value) setHeroSettings(s => ({ ...s, ...data.value }))
+      })
+      .catch(() => {})
   }, [])
 
   async function handleSave() {
     setSaving(true)
     try {
-      const res = await fetch("/api/site-settings", {
-        method: "PUT",
-        headers: adminHeaders(),
-        body: JSON.stringify({ general_settings: settings }),
-      })
-      if (!res.ok) throw new Error("Save failed")
+      const [res1, res2] = await Promise.all([
+        fetch("/api/site-settings", {
+          method: "PUT",
+          headers: adminHeaders(),
+          body: JSON.stringify({ general_settings: settings }),
+        }),
+        fetch("/api/site-settings", {
+          method: "PUT",
+          headers: adminHeaders(),
+          body: JSON.stringify({ hero_settings: heroSettings }),
+        }),
+      ])
+      if (!res1.ok || !res2.ok) throw new Error("Save failed")
       toast.success("Settings saved successfully!")
     } catch {
       toast.error("Failed to save settings")
@@ -100,6 +136,36 @@ export function SiteSettings() {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     toast.success("Copied to clipboard!")
+  }
+
+  function updateTagline(index: number, value: string) {
+    const updated = [...heroSettings.taglines]
+    updated[index] = value
+    setHeroSettings(s => ({ ...s, taglines: updated }))
+  }
+
+  function addTagline() {
+    setHeroSettings(s => ({ ...s, taglines: [...s.taglines, ""] }))
+  }
+
+  function removeTagline(index: number) {
+    const updated = heroSettings.taglines.filter((_, i) => i !== index)
+    setHeroSettings(s => ({ ...s, taglines: updated }))
+  }
+
+  function updateTrustStat(index: number, value: string) {
+    const updated = [...heroSettings.trustStats]
+    updated[index] = value
+    setHeroSettings(s => ({ ...s, trustStats: updated }))
+  }
+
+  function addTrustStat() {
+    setHeroSettings(s => ({ ...s, trustStats: [...s.trustStats, ""] }))
+  }
+
+  function removeTrustStat(index: number) {
+    const updated = heroSettings.trustStats.filter((_, i) => i !== index)
+    setHeroSettings(s => ({ ...s, trustStats: updated }))
   }
 
   return (
@@ -170,6 +236,7 @@ export function SiteSettings() {
                 onChange={(e) => setSettings(s => ({ ...s, contactEmail: e.target.value }))}
                 placeholder="contact@example.com"
               />
+              <p className="text-xs text-muted-foreground">Shown in the footer contact section</p>
             </div>
 
             <div className="space-y-2">
@@ -187,11 +254,11 @@ export function SiteSettings() {
                   </a>
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">Shown in footer quick links and contact section</p>
             </div>
 
             <Separator />
 
-            {/* Environment Info */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Database className="h-4 w-4 text-muted-foreground" />
@@ -210,6 +277,247 @@ export function SiteSettings() {
                     Active
                   </Badge>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Social Links Settings */}
+      {activeSection === "social" && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-blue-500" />
+              Social Links
+            </CardTitle>
+            <CardDescription>
+              These URLs appear in the footer and throughout the site. Changes are reflected live.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="instagramUrl" className="flex items-center gap-2">
+                <Instagram className="h-4 w-4 text-pink-500" />
+                Instagram URL
+              </Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="instagramUrl"
+                  value={settings.instagramUrl}
+                  onChange={(e) => setSettings(s => ({ ...s, instagramUrl: e.target.value }))}
+                  placeholder="https://www.instagram.com/yourpage"
+                />
+                <Button variant="outline" size="icon" asChild>
+                  <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="facebookUrl" className="flex items-center gap-2">
+                <Facebook className="h-4 w-4 text-blue-600" />
+                Facebook URL
+              </Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="facebookUrl"
+                  value={settings.facebookUrl}
+                  onChange={(e) => setSettings(s => ({ ...s, facebookUrl: e.target.value }))}
+                  placeholder="https://www.facebook.com/yourpage"
+                />
+                <Button variant="outline" size="icon" asChild>
+                  <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="whatsappChannelUrl" className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-green-500" />
+                WhatsApp Channel URL
+              </Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="whatsappChannelUrl"
+                  value={settings.whatsappChannelUrl}
+                  onChange={(e) => setSettings(s => ({ ...s, whatsappChannelUrl: e.target.value }))}
+                  placeholder="https://whatsapp.com/channel/..."
+                />
+                <Button variant="outline" size="icon" asChild>
+                  <a href={settings.whatsappChannelUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Used in the popup, hero button, footer, and bottom CTA</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telegramUrl" className="flex items-center gap-2">
+                <Send className="h-4 w-4 text-sky-500" />
+                Telegram URL
+              </Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="telegramUrl"
+                  value={settings.telegramUrl}
+                  onChange={(e) => setSettings(s => ({ ...s, telegramUrl: e.target.value }))}
+                  placeholder="https://t.me/yourchannel"
+                />
+                <Button variant="outline" size="icon" asChild>
+                  <a href={settings.telegramUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
+              <div>
+                <p className="font-medium">WhatsApp Popup</p>
+                <p className="text-sm text-muted-foreground">
+                  Show WhatsApp channel popup to visitors on page load
+                </p>
+              </div>
+              <Switch
+                checked={settings.whatsappPopupEnabled}
+                onCheckedChange={(checked) => setSettings(s => ({ ...s, whatsappPopupEnabled: checked }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Hero Content Settings */}
+      {activeSection === "hero" && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layout className="h-5 w-5 text-violet-500" />
+              Hero Content
+            </CardTitle>
+            <CardDescription>
+              Customize the homepage hero section — taglines, stats badges, badge text, and description
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="badgeText">Badge Text</Label>
+              <Input 
+                id="badgeText"
+                value={heroSettings.badgeText}
+                onChange={(e) => setHeroSettings(s => ({ ...s, badgeText: e.target.value }))}
+                placeholder="Free Educational Resources"
+              />
+              <p className="text-xs text-muted-foreground">Shown above the main heading (e.g. "Free Educational Resources")</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="heroDescription">Hero Description</Label>
+              <textarea
+                id="heroDescription"
+                value={heroSettings.description}
+                onChange={(e) => setHeroSettings(s => ({ ...s, description: e.target.value }))}
+                placeholder="Discover our comprehensive collection..."
+                rows={3}
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+              <p className="text-xs text-muted-foreground">Paragraph shown below the main heading</p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Rotating Taglines</Label>
+                <Button variant="outline" size="sm" onClick={addTagline} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">These rotate automatically below the main heading</p>
+              <div className="space-y-2">
+                {heroSettings.taglines.map((tagline, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      value={tagline}
+                      onChange={(e) => updateTagline(i, e.target.value)}
+                      placeholder={`Tagline ${i + 1}`}
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => removeTagline(i)}
+                      disabled={heroSettings.taglines.length <= 1}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Trust Stat Badges</Label>
+                <Button variant="outline" size="sm" onClick={addTrustStat} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Badges shown above the main heading (e.g. "10,000+ Students")</p>
+              <div className="space-y-2">
+                {heroSettings.trustStats.map((stat, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      value={stat}
+                      onChange={(e) => updateTrustStat(i, e.target.value)}
+                      placeholder={`Stat ${i + 1} (e.g. 10,000+ Students)`}
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => removeTrustStat(i)}
+                      disabled={heroSettings.trustStats.length <= 1}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="heroBtnText">Primary Button Text</Label>
+                <Input 
+                  id="heroBtnText"
+                  value={heroSettings.heroBtnText}
+                  onChange={(e) => setHeroSettings(s => ({ ...s, heroBtnText: e.target.value }))}
+                  placeholder="Browse Library"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="whatsappBtnText">WhatsApp Button Text</Label>
+                <Input 
+                  id="whatsappBtnText"
+                  value={heroSettings.whatsappBtnText}
+                  onChange={(e) => setHeroSettings(s => ({ ...s, whatsappBtnText: e.target.value }))}
+                  placeholder="Join Updates"
+                />
               </div>
             </div>
           </CardContent>
@@ -302,7 +610,6 @@ export function SiteSettings() {
                   </div>
                 </div>
 
-                {/* Preview */}
                 <div className="space-y-2">
                   <Label>Preview</Label>
                   <div className="relative aspect-[3/4] max-w-[200px] bg-card border border-border/50 rounded-lg overflow-hidden">
@@ -343,7 +650,6 @@ export function SiteSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Admin Password Info */}
             <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
               <div className="flex gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
@@ -387,7 +693,6 @@ export function SiteSettings() {
 
             <Separator />
 
-            {/* Quick Links */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">Security Resources</h4>
               <div className="grid gap-2">
@@ -451,11 +756,7 @@ export function SiteSettings() {
                     Get notified when users submit new reviews
                   </p>
                 </div>
-                <Switch
-                  checked={settings.emailOnNewReview}
-                  onCheckedChange={(checked) => setSettings(s => ({ ...s, emailOnNewReview: checked }))}
-                  disabled
-                />
+                <Switch checked={settings.emailOnNewReview} onCheckedChange={(checked) => setSettings(s => ({ ...s, emailOnNewReview: checked }))} disabled />
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50 opacity-60">
@@ -465,11 +766,7 @@ export function SiteSettings() {
                     Alert when a PDF receives 1-2 star rating
                   </p>
                 </div>
-                <Switch
-                  checked={settings.emailOnLowRating}
-                  onCheckedChange={(checked) => setSettings(s => ({ ...s, emailOnLowRating: checked }))}
-                  disabled
-                />
+                <Switch checked={settings.emailOnLowRating} onCheckedChange={(checked) => setSettings(s => ({ ...s, emailOnLowRating: checked }))} disabled />
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50 opacity-60">
@@ -479,11 +776,7 @@ export function SiteSettings() {
                     Celebrate when a PDF hits {settings.downloadThreshold}+ downloads
                   </p>
                 </div>
-                <Switch
-                  checked={settings.emailOnHighDownloads}
-                  onCheckedChange={(checked) => setSettings(s => ({ ...s, emailOnHighDownloads: checked }))}
-                  disabled
-                />
+                <Switch checked={settings.emailOnHighDownloads} onCheckedChange={(checked) => setSettings(s => ({ ...s, emailOnHighDownloads: checked }))} disabled />
               </div>
             </div>
           </CardContent>

@@ -14,6 +14,16 @@ import type { PDF, Category } from "@/lib/types"
 
 export const revalidate = 60
 
+const DEFAULT_WHATSAPP_URL = "https://whatsapp.com/channel/0029Vadk2XHLSmbX3oEVmX37"
+
+async function getGeneralSettings(): Promise<Record<string, string>> {
+  if (!isSupabaseConfigured()) return {}
+  const supabase = await createClient()
+  if (!supabase) return {}
+  const { data } = await supabase.from("site_settings").select("value").eq("key", "general_settings").single()
+  return (data?.value as Record<string, string>) ?? {}
+}
+
 async function getPDFs(): Promise<PDF[]> {
   if (!isSupabaseConfigured()) return []
   
@@ -73,9 +83,11 @@ function groupPdfsByCategory(pdfs: PDF[]): Record<string, PDF[]> {
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const configured = isSupabaseConfigured()
-  const [pdfs, categories] = configured 
-    ? await Promise.all([getPDFs(), getCategories()])
-    : [[], []]
+  const [pdfs, categories, generalSettings] = configured 
+    ? await Promise.all([getPDFs(), getCategories(), getGeneralSettings()])
+    : [[], [], {}]
+  
+  const whatsappUrl = (generalSettings as Record<string, string>).whatsappChannelUrl || DEFAULT_WHATSAPP_URL
   
   const stats = getStats(pdfs, categories)
   const featured = getFeaturedPDFs(pdfs)
@@ -177,7 +189,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   Browse PDFs
                 </a>
                 <a 
-                  href="https://whatsapp.com/channel/0029Vadk2XHLSmbX3oEVmX37"
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-border bg-card text-foreground text-sm font-semibold hover:border-[#25D366]/50 hover:bg-[#25D366]/5 transition-all"

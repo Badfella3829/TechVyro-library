@@ -3,17 +3,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Bell, Users, Zap, Gift } from 'lucide-react';
 
+const DEFAULT_URL = 'https://whatsapp.com/channel/0029Vadk2XHLSmbX3oEVmX37';
+
 export function WhatsAppPopup() {
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState(DEFAULT_URL);
+  const [popupEnabled, setPopupEnabled] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+    fetch('/api/site-settings?key=general_settings')
+      .then(r => r.json())
+      .then(data => {
+        if (data.value) {
+          if (data.value.whatsappChannelUrl) setWhatsappUrl(data.value.whatsappChannelUrl);
+          if (data.value.whatsappPopupEnabled === false) setPopupEnabled(false);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !popupEnabled) return;
 
     const timer = setTimeout(() => {
       setIsOpen(true);
@@ -25,7 +38,7 @@ export function WhatsAppPopup() {
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [mounted]);
+  }, [mounted, popupEnabled]);
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
@@ -35,9 +48,9 @@ export function WhatsAppPopup() {
   }, []);
 
   const handleJoin = useCallback(() => {
-    window.open('https://whatsapp.com/channel/0029Vadk2XHLSmbX3oEVmX37', '_blank');
+    window.open(whatsappUrl, '_blank');
     handleClose();
-  }, [handleClose]);
+  }, [whatsappUrl, handleClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -48,7 +61,7 @@ export function WhatsAppPopup() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose]);
 
-  if (!mounted || !isOpen) return null;
+  if (!mounted || !isOpen || !popupEnabled) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -83,14 +96,9 @@ export function WhatsAppPopup() {
 
         {/* Card */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-white/10 shadow-2xl">
-
-          {/* Top bar */}
           <div className="h-1 w-full bg-gradient-to-r from-[#25D366] via-emerald-400 to-[#128C7E]" />
 
-          {/* Content */}
           <div className="relative px-4 sm:px-6 pt-6 sm:pt-8 pb-5 sm:pb-6">
-
-            {/* Close */}
             <button
               onClick={handleClose}
               className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
@@ -99,7 +107,6 @@ export function WhatsAppPopup() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Badge */}
             <div className="flex justify-center mb-4">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs font-medium">
                 <Bell className="w-3 h-3" />
@@ -107,7 +114,6 @@ export function WhatsAppPopup() {
               </span>
             </div>
 
-            {/* WhatsApp Icon */}
             <div className="flex justify-center mb-3 sm:mb-4">
               <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-[#25D366] to-[#128C7E] rounded-xl flex items-center justify-center shadow-lg shadow-[#25D366]/30">
                 <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8 text-white fill-current">
@@ -116,7 +122,6 @@ export function WhatsAppPopup() {
               </div>
             </div>
 
-            {/* Title */}
             <h2 className="text-center text-xl sm:text-2xl font-bold mb-1.5">
               <span className="text-[#ef4444]">Tech</span>
               <span className="text-white">Vyro</span>
@@ -130,7 +135,6 @@ export function WhatsAppPopup() {
               Get free PDFs, study materials & tech updates directly on WhatsApp.
             </p>
 
-            {/* Features */}
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[
                 { icon: Zap, label: 'Updates' },
@@ -146,7 +150,6 @@ export function WhatsAppPopup() {
               ))}
             </div>
 
-            {/* Button */}
             <button
               onClick={handleJoin}
               className="w-full py-3 px-4 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-[#25D366]/20 hover:-translate-y-0.5 active:translate-y-0"
