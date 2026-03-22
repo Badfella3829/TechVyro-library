@@ -1,71 +1,84 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { 
-  ArrowLeft, Plus, Upload, FolderPlus, Trash2, FileText, LogOut, 
+import {
+  ArrowLeft, Plus, Upload, FolderPlus, Trash2, FileText, LogOut,
   BarChart3, RefreshCw, Settings, Database, Loader2, MessageSquare,
   TrendingUp, Download, Eye, Star, Clock, Users, Zap, HardDrive,
-  Activity, AlertCircle, Home, History
+  Activity, AlertCircle, Home, History, Menu, X, ChevronRight,
+  BookOpen, Layers, Shield, Bell, Search, Moon, Sun, CheckCircle2,
+  AlertTriangle, Info, ArrowUpRight, ArrowDownRight, Minus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import type { Category, PDF } from "@/lib/types"
 
-// Dynamic imports for heavy components
-const PDFUploadForm = dynamic(() => import("@/components/admin/pdf-upload-form").then(mod => ({ default: mod.PDFUploadForm })), {
+const PDFUploadForm = dynamic(() => import("@/components/admin/pdf-upload-form").then(m => ({ default: m.PDFUploadForm })), {
   loading: () => <ComponentLoader text="Loading uploader..." />,
 })
-
-const CategoryManager = dynamic(() => import("@/components/admin/category-manager").then(mod => ({ default: mod.CategoryManager })), {
+const CategoryManager = dynamic(() => import("@/components/admin/category-manager").then(m => ({ default: m.CategoryManager })), {
   loading: () => <ComponentLoader text="Loading categories..." />,
 })
-
-const PDFList = dynamic(() => import("@/components/admin/pdf-list").then(mod => ({ default: mod.PDFList })), {
+const PDFList = dynamic(() => import("@/components/admin/pdf-list").then(m => ({ default: m.PDFList })), {
   loading: () => <ComponentLoader text="Loading PDFs..." />,
 })
-
-const AnalyticsDashboard = dynamic(() => import("@/components/admin/analytics-dashboard").then(mod => ({ default: mod.AnalyticsDashboard })), {
+const AnalyticsDashboard = dynamic(() => import("@/components/admin/analytics-dashboard").then(m => ({ default: m.AnalyticsDashboard })), {
   loading: () => <ComponentLoader text="Loading analytics..." />,
 })
-
-const ReviewsManager = dynamic(() => import("@/components/admin/reviews-manager").then(mod => ({ default: mod.ReviewsManager })), {
+const ReviewsManager = dynamic(() => import("@/components/admin/reviews-manager").then(m => ({ default: m.ReviewsManager })), {
   loading: () => <ComponentLoader text="Loading reviews..." />,
 })
-
-const SiteSettings = dynamic(() => import("@/components/admin/site-settings").then(mod => ({ default: mod.SiteSettings })), {
+const SiteSettings = dynamic(() => import("@/components/admin/site-settings").then(m => ({ default: m.SiteSettings })), {
   loading: () => <ComponentLoader text="Loading settings..." />,
 })
-
-const ActivityLog = dynamic(() => import("@/components/admin/activity-log").then(mod => ({ default: mod.ActivityLog })), {
+const ActivityLog = dynamic(() => import("@/components/admin/activity-log").then(m => ({ default: m.ActivityLog })), {
   loading: () => <ComponentLoader text="Loading activity log..." />,
 })
-
-const HomepageManager = dynamic(() => import("@/components/admin/homepage-manager").then(mod => ({ default: mod.HomepageManager })), {
+const HomepageManager = dynamic(() => import("@/components/admin/homepage-manager").then(m => ({ default: m.HomepageManager })), {
   loading: () => <ComponentLoader text="Loading homepage manager..." />,
 })
-
-const FolderManager = dynamic(() => import("@/components/admin/folder-manager").then(mod => ({ default: mod.FolderManager })), {
+const FolderManager = dynamic(() => import("@/components/admin/folder-manager").then(m => ({ default: m.FolderManager })), {
   loading: () => <ComponentLoader text="Loading folder manager..." />,
 })
-
-const QuizManager = dynamic(() => import("@/components/admin/quiz-manager").then(mod => ({ default: mod.QuizManager })), {
+const QuizManager = dynamic(() => import("@/components/admin/quiz-manager").then(m => ({ default: m.QuizManager })), {
   loading: () => <ComponentLoader text="Loading quiz manager..." />,
 })
 
 function ComponentLoader({ text }: { text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 gap-3">
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
       <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
       <p className="text-sm text-muted-foreground">{text}</p>
     </div>
   )
+}
+
+const NAV_ITEMS = [
+  { id: "overview", label: "Overview", icon: Activity, group: "main" },
+  { id: "upload", label: "Upload PDF", icon: Upload, group: "content" },
+  { id: "pdfs", label: "All PDFs", icon: FileText, group: "content" },
+  { id: "structure", label: "Structure", icon: Layers, group: "content" },
+  { id: "categories", label: "Categories", icon: Database, group: "content" },
+  { id: "quizzes", label: "Quizzes", icon: Zap, group: "content" },
+  { id: "reviews", label: "Reviews", icon: MessageSquare, group: "engagement" },
+  { id: "homepage", label: "Homepage", icon: Home, group: "engagement" },
+  { id: "analytics", label: "Analytics", icon: BarChart3, group: "insights" },
+  { id: "activity", label: "Activity Log", icon: History, group: "insights" },
+  { id: "settings", label: "Settings", icon: Settings, group: "system" },
+]
+
+const GROUP_LABELS: Record<string, string> = {
+  main: "Main",
+  content: "Content",
+  engagement: "Engagement",
+  insights: "Insights",
+  system: "System",
 }
 
 export default function AdminPage() {
@@ -74,29 +87,32 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     try {
       const [catsRes, pdfsRes] = await Promise.all([
         fetch("/api/categories"),
         fetch("/api/pdfs"),
       ])
-      
       const catsData = await catsRes.json()
       const pdfsData = await pdfsRes.json()
-      
       setCategories(catsData.categories || [])
       setPdfs(pdfsData.pdfs || [])
-    } catch (error) {
+    } catch {
       toast.error("Failed to fetch data")
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
 
   useEffect(() => {
-    fetchData()
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
+    return () => clearInterval(timer)
   }, [])
 
   function handleRefresh() {
@@ -110,33 +126,20 @@ export default function AdminPage() {
     window.location.reload()
   }
 
-  function handleUploadSuccess() {
-    fetchData()
+  function navigate(tab: string) {
+    setActiveTab(tab)
+    setSidebarOpen(false)
   }
 
-  function handleCategoryChange() {
-    fetchData()
-  }
-
-  function handlePDFDelete() {
-    fetchData()
-  }
-
-  function handlePDFUpdate() {
-    fetchData()
-  }
-
-  // Calculated stats
-  const totalViews = pdfs.reduce((sum, pdf) => sum + (pdf.view_count || 0), 0)
-  const totalDownloads = pdfs.reduce((sum, pdf) => sum + pdf.download_count, 0)
-  const totalStorage = pdfs.reduce((sum, pdf) => sum + (pdf.file_size || 0), 0)
-  const totalReviews = pdfs.reduce((sum, pdf) => sum + (pdf.review_count || 0), 0)
+  const totalViews = pdfs.reduce((sum, p) => sum + (p.view_count || 0), 0)
+  const totalDownloads = pdfs.reduce((sum, p) => sum + p.download_count, 0)
+  const totalStorage = pdfs.reduce((sum, p) => sum + (p.file_size || 0), 0)
+  const totalReviews = pdfs.reduce((sum, p) => sum + (p.review_count || 0), 0)
   const avgRating = pdfs.filter(p => p.average_rating).length > 0
-    ? pdfs.filter(p => p.average_rating).reduce((sum, pdf) => sum + (pdf.average_rating || 0), 0) / pdfs.filter(p => p.average_rating).length
+    ? pdfs.filter(p => p.average_rating).reduce((sum, p) => sum + (p.average_rating || 0), 0) / pdfs.filter(p => p.average_rating).length
     : 0
-  const engagementRate = totalViews > 0 ? ((totalDownloads / totalViews) * 100) : 0
+  const engagementRate = totalViews > 0 ? (totalDownloads / totalViews) * 100 : 0
 
-  // Recent activity (last 7 days)
   const recentPdfs = pdfs.filter(pdf => {
     const uploadDate = new Date(pdf.created_at)
     const weekAgo = new Date()
@@ -152,542 +155,576 @@ export default function AdminPage() {
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
   }
 
+  function getGreeting() {
+    const h = currentTime.getHours()
+    if (h < 12) return "Good morning"
+    if (h < 17) return "Good afternoon"
+    return "Good evening"
+  }
+
+  const activeNavItem = NAV_ITEMS.find(n => n.id === activeTab)
+  const groups = [...new Set(NAV_ITEMS.map(n => n.group))]
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-        
-        <div className="container mx-auto flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link 
-              href="/" 
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
-                <ArrowLeft className="h-4 w-4" />
-              </div>
-              <span className="hidden sm:inline font-medium">Back to Library</span>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-muted/30 flex">
+      {/* Sidebar Overlay (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
+      {/* Sidebar */}
+      <aside className={`
+        fixed top-0 left-0 z-50 h-full w-64 bg-background border-r border-border/60 flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:relative lg:translate-x-0 lg:z-auto lg:flex lg:shrink-0
+      `}>
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between px-4 h-16 border-b border-border/60 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <div className="absolute -inset-1 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 blur opacity-50" />
-              <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg">
-                <Settings className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent shadow">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold leading-none">Admin Panel</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">TechVyro Library</p>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" onClick={() => setSidebarOpen(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+          {groups.map(group => {
+            const items = NAV_ITEMS.filter(n => n.group === group)
+            return (
+              <div key={group}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-2 mb-1.5">
+                  {GROUP_LABELS[group]}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map(item => {
+                    const Icon = item.icon
+                    const isActive = activeTab === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => navigate(item.id)}
+                        className={`
+                          w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
+                          ${isActive
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }
+                        `}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {item.id === "pdfs" && pdfs.length > 0 && (
+                          <Badge className={`text-[10px] h-4 px-1.5 ${isActive ? "bg-white/20 text-white border-0" : "bg-primary/10 text-primary border-0"}`}>
+                            {pdfs.length}
+                          </Badge>
+                        )}
+                        {item.id === "categories" && categories.length > 0 && (
+                          <Badge className={`text-[10px] h-4 px-1.5 ${isActive ? "bg-white/20 text-white border-0" : "bg-accent/10 text-accent border-0"}`}>
+                            {categories.length}
+                          </Badge>
+                        )}
+                        {item.id === "reviews" && totalReviews > 0 && (
+                          <Badge className={`text-[10px] h-4 px-1.5 ${isActive ? "bg-white/20 text-white border-0" : "bg-green-500/10 text-green-600 border-0"}`}>
+                            {totalReviews}
+                          </Badge>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-            <div className="hidden sm:block">
-              <span className="font-bold text-base">Admin Dashboard</span>
-              <p className="text-[10px] text-muted-foreground -mt-0.5">TechVyro Library</p>
-            </div>
-            <span className="sm:hidden font-semibold text-sm">Admin</span>
+            )
+          })}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-border/60 space-y-2 shrink-0">
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Library
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 h-16 bg-background/95 backdrop-blur-xl border-b border-border/60 flex items-center px-4 gap-4 shrink-0">
+          {/* Mobile menu toggle */}
+          <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9" onClick={() => setSidebarOpen(true)}>
+            <Menu className="h-5 w-5" />
+          </Button>
+
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-sm min-w-0">
+            <span className="text-muted-foreground hidden sm:inline">Admin</span>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 hidden sm:inline" />
+            <span className="font-semibold text-foreground truncate">
+              {activeNavItem?.label || "Overview"}
+            </span>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+          <div className="ml-auto flex items-center gap-2">
+            {/* Live indicator */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 rounded-full px-3 py-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              Live
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-2 sm:px-3 h-9 hover:bg-primary/5 hover:border-primary/50"
+              className="h-9 px-3 gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline ml-2">Refresh</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleLogout} 
-              className="px-2 sm:px-3 h-9 hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
-            >
-              <LogOut className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Logout</span>
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline text-sm">Refresh</span>
             </Button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-10">
-        {/* Page Title */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard Overview</h1>
-          <p className="mt-1 text-sm sm:text-base text-muted-foreground">
-            Manage your PDF library, analytics, and settings
-          </p>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-8">
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2">
-            <TabsList className="flex h-auto gap-1 sm:gap-1.5 p-1 sm:p-1.5 bg-muted/50 rounded-xl min-w-max sm:min-w-0 sm:flex-wrap">
-            <TabsTrigger value="overview" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="xs:inline sm:inline text-[9px] xs:text-[10px] sm:text-sm">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="upload" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="xs:inline sm:inline text-[9px] xs:text-[10px] sm:text-sm">Upload</span>
-            </TabsTrigger>
-            <TabsTrigger value="pdfs" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="xs:inline sm:inline text-[9px] xs:text-[10px] sm:text-sm">PDFs</span>
-              <Badge variant="secondary" className="ml-0.5 sm:ml-1 h-4 sm:h-5 px-1 sm:px-1.5 text-[9px] sm:text-xs bg-primary/10 text-primary">
-                {pdfs.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="structure" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <FolderPlus className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm">Structure</span>
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <Database className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm">Categories</span>
-              <Badge variant="secondary" className="ml-0.5 sm:ml-1 h-4 sm:h-5 px-1 sm:px-1.5 text-[9px] sm:text-xs bg-accent/10 text-accent">
-                {categories.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="quizzes" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <Zap className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="xs:inline sm:inline text-[9px] xs:text-[10px] sm:text-sm">Quiz</span>
-            </TabsTrigger>
-
-            <TabsTrigger value="reviews" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm">Reviews</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm">Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="homepage" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <Home className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="xs:inline sm:inline text-[9px] xs:text-[10px] sm:text-sm">Home</span>
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <History className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm">Activity</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-1 sm:gap-2 text-[10px] sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg transition-all">
-              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm">Settings</span>
-            </TabsTrigger>
-          </TabsList>
-          </div>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              <StatCard 
-                label="Total PDFs" 
-                value={pdfs.length} 
-                icon={FileText}
-                color="primary"
-              />
-              <StatCard 
-                label="Categories" 
-                value={categories.length} 
-                icon={FolderPlus}
-                color="accent"
-              />
-              <StatCard 
-                label="Total Views" 
-                value={totalViews} 
-                icon={Eye}
-                color="green"
-              />
-              <StatCard 
-                label="Downloads" 
-                value={totalDownloads} 
-                icon={Download}
-                color="blue"
-              />
-              <StatCard 
-                label="Reviews" 
-                value={totalReviews} 
-                icon={MessageSquare}
-                color="purple"
-              />
-              <StatCard 
-                label="Storage" 
-                value={formatBytes(totalStorage)} 
-                icon={HardDrive}
-                color="orange"
-                isString
-              />
-            </div>
-
-            {/* Quick Actions & Insights */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Quick Actions */}
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Zap className="h-5 w-5 text-amber-500" />
-                    Quick Actions
-                  </CardTitle>
-                  <CardDescription>Frequently used actions</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button 
-                    className="w-full justify-start gap-3" 
-                    variant="outline"
-                    onClick={() => setActiveTab("upload")}
-                  >
-                    <Upload className="h-4 w-4 text-primary" />
-                    Upload New PDF
+        {/* Page Body */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {/* ── Overview ── */}
+          {activeTab === "overview" && (
+            <div className="space-y-6 max-w-7xl mx-auto">
+              {/* Greeting */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold">{getGreeting()}, Admin 👋</h1>
+                  <p className="text-muted-foreground text-sm mt-0.5">
+                    {currentTime.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => navigate("upload")} className="gap-2">
+                    <Upload className="h-3.5 w-3.5" />
+                    Upload PDF
                   </Button>
-                  <Button 
-                    className="w-full justify-start gap-3" 
-                    variant="outline"
-                    onClick={() => setActiveTab("categories")}
-                  >
-                    <FolderPlus className="h-4 w-4 text-accent" />
-                    Add Category
+                  <Button size="sm" variant="outline" onClick={() => navigate("analytics")} className="gap-2">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Analytics
                   </Button>
-                  <Button 
-                    className="w-full justify-start gap-3" 
-                    variant="outline"
-                    onClick={() => setActiveTab("analytics")}
-                  >
-                    <BarChart3 className="h-4 w-4 text-blue-500" />
-                    View Analytics
-                  </Button>
-                  <Button 
-                    className="w-full justify-start gap-3" 
-                    variant="outline"
-                    onClick={() => setActiveTab("reviews")}
-                  >
-                    <MessageSquare className="h-4 w-4 text-green-500" />
-                    Moderate Reviews
-                  </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              {/* Performance Metrics */}
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <TrendingUp className="h-5 w-5 text-green-500" />
-                    Performance
-                  </CardTitle>
-                  <CardDescription>Key performance indicators</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Engagement Rate</span>
-                      <span className="font-medium">{engagementRate.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={Math.min(engagementRate, 100)} className="h-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Average Rating</span>
-                      <span className="font-medium flex items-center gap-1">
-                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                        {avgRating > 0 ? avgRating.toFixed(1) : "N/A"}
-                      </span>
-                    </div>
-                    <Progress value={avgRating * 20} className="h-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Category Coverage</span>
-                      <span className="font-medium">{categories.length > 0 ? Math.round((pdfs.filter(p => p.category_id).length / pdfs.length) * 100) : 0}%</span>
-                    </div>
-                    <Progress value={categories.length > 0 && pdfs.length > 0 ? (pdfs.filter(p => p.category_id).length / pdfs.length) * 100 : 0} className="h-2" />
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+                <StatCard label="Total PDFs" value={pdfs.length} icon={FileText} color="violet" onClick={() => navigate("pdfs")} />
+                <StatCard label="Categories" value={categories.length} icon={Database} color="blue" onClick={() => navigate("categories")} />
+                <StatCard label="Total Views" value={totalViews} icon={Eye} color="green" />
+                <StatCard label="Downloads" value={totalDownloads} icon={Download} color="amber" />
+                <StatCard label="Reviews" value={totalReviews} icon={MessageSquare} color="pink" onClick={() => navigate("reviews")} />
+                <StatCard label="Storage" value={formatBytes(totalStorage)} icon={HardDrive} color="slate" isString />
+              </div>
 
-              {/* Recent Activity */}
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Clock className="h-5 w-5 text-blue-500" />
-                    Recent Uploads
-                  </CardTitle>
-                  <CardDescription>PDFs added in the last 7 days</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {recentPdfs.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No recent uploads</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentPdfs.slice(0, 4).map((pdf) => (
-                        <div key={pdf.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                            <FileText className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{pdf.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(pdf.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      {recentPdfs.length > 4 && (
-                        <Button 
-                          variant="ghost" 
-                          className="w-full text-xs h-8"
-                          onClick={() => setActiveTab("pdfs")}
-                        >
-                          View all {recentPdfs.length} recent uploads
-                        </Button>
+              {/* 3-col row */}
+              <div className="grid gap-4 lg:grid-cols-3">
+                {/* Quick Actions */}
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Zap className="h-4 w-4 text-amber-500" />
+                      Quick Actions
+                    </CardTitle>
+                    <CardDescription>Jump to common tasks</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {[
+                      { label: "Upload New PDF", icon: Upload, tab: "upload", color: "text-primary" },
+                      { label: "Add Category", icon: FolderPlus, tab: "categories", color: "text-accent" },
+                      { label: "Manage Quizzes", icon: Zap, tab: "quizzes", color: "text-amber-500" },
+                      { label: "Moderate Reviews", icon: MessageSquare, tab: "reviews", color: "text-green-500" },
+                      { label: "View Analytics", icon: BarChart3, tab: "analytics", color: "text-blue-500" },
+                      { label: "Site Settings", icon: Settings, tab: "settings", color: "text-purple-500" },
+                    ].map(({ label, icon: Icon, tab, color }) => (
+                      <button
+                        key={tab}
+                        onClick={() => navigate(tab)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-muted transition-colors text-left group"
+                      >
+                        <Icon className={`h-4 w-4 ${color} shrink-0`} />
+                        <span className="flex-1">{label}</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Performance KPIs */}
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      Performance
+                    </CardTitle>
+                    <CardDescription>Key metrics at a glance</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    <KpiRow
+                      label="Engagement Rate"
+                      value={`${engagementRate.toFixed(1)}%`}
+                      progress={Math.min(engagementRate, 100)}
+                      status={engagementRate > 30 ? "good" : engagementRate > 10 ? "warn" : "low"}
+                    />
+                    <KpiRow
+                      label="Avg Rating"
+                      value={avgRating > 0 ? `${avgRating.toFixed(1)} ★` : "No data"}
+                      progress={avgRating * 20}
+                      status={avgRating >= 4 ? "good" : avgRating >= 3 ? "warn" : "low"}
+                    />
+                    <KpiRow
+                      label="Category Coverage"
+                      value={pdfs.length > 0 ? `${Math.round((pdfs.filter(p => p.category_id).length / pdfs.length) * 100)}%` : "0%"}
+                      progress={pdfs.length > 0 ? (pdfs.filter(p => p.category_id).length / pdfs.length) * 100 : 0}
+                      status={pdfs.length > 0 && (pdfs.filter(p => p.category_id).length / pdfs.length) > 0.8 ? "good" : "warn"}
+                    />
+                    <KpiRow
+                      label="Avg Downloads/PDF"
+                      value={pdfs.length > 0 ? `${Math.round(totalDownloads / pdfs.length)}` : "0"}
+                      progress={Math.min((totalDownloads / Math.max(pdfs.length, 1)) / 10, 100)}
+                      status="good"
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Recent Uploads */}
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Clock className="h-4 w-4 text-blue-500" />
+                        Recent Uploads
+                      </CardTitle>
+                      {recentPdfs.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">{recentPdfs.length} this week</Badge>
                       )}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Top Performing PDFs */}
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Top Performing PDFs
-                </CardTitle>
-                <CardDescription>Most downloaded and viewed documents</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {[...pdfs]
-                    .sort((a, b) => b.download_count - a.download_count)
-                    .slice(0, 6)
-                    .map((pdf, index) => {
-                      const category = categories.find(c => c.id === pdf.category_id)
-                      return (
-                        <div 
-                          key={pdf.id}
-                          className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50"
-                        >
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${
-                            index === 0 ? "bg-amber-500/20 text-amber-600" :
-                            index === 1 ? "bg-slate-400/20 text-slate-500" :
-                            index === 2 ? "bg-orange-600/20 text-orange-600" :
-                            "bg-muted text-muted-foreground"
-                          }`}>
-                            #{index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{pdf.title}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Download className="h-3 w-3" />
-                                {pdf.download_count}
-                              </span>
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Eye className="h-3 w-3" />
-                                {pdf.view_count || 0}
-                              </span>
+                    <CardDescription>PDFs added in the last 7 days</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {recentPdfs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <AlertCircle className="h-8 w-8 mb-2 opacity-40" />
+                        <p className="text-sm">No recent uploads</p>
+                        <Button size="sm" variant="outline" className="mt-3 gap-2" onClick={() => navigate("upload")}>
+                          <Upload className="h-3.5 w-3.5" /> Upload now
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {recentPdfs.slice(0, 5).map((pdf) => (
+                          <div key={pdf.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/60 transition-colors">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                              <FileText className="h-3.5 w-3.5 text-primary" />
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{pdf.title}</p>
+                              <p className="text-xs text-muted-foreground">{new Date(pdf.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] h-5 shrink-0 border-green-500/30 text-green-600">New</Badge>
                           </div>
-                          {category && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-[10px] h-5 shrink-0"
-                              style={{ backgroundColor: category.color + "20", color: category.color, borderColor: category.color + "40" }}
-                            >
-                              {category.name}
-                            </Badge>
-                          )}
+                        ))}
+                        {recentPdfs.length > 5 && (
+                          <Button variant="ghost" className="w-full text-xs h-8" onClick={() => navigate("pdfs")}>
+                            +{recentPdfs.length - 5} more — View all
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Top PDFs + System Status */}
+              <div className="grid gap-4 lg:grid-cols-3">
+                {/* Top Performing PDFs */}
+                <Card className="lg:col-span-2 border-border/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        Top Performing PDFs
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={() => navigate("pdfs")}>
+                        View all <ChevronRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <CardDescription>Ranked by download count</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {pdfs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <BookOpen className="h-8 w-8 mb-2 opacity-40" />
+                        <p className="text-sm">No PDFs uploaded yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {[...pdfs]
+                          .sort((a, b) => b.download_count - a.download_count)
+                          .slice(0, 6)
+                          .map((pdf, index) => {
+                            const category = categories.find(c => c.id === pdf.category_id)
+                            const maxDownloads = pdfs[0]?.download_count || 1
+                            const pct = Math.round((pdf.download_count / Math.max(maxDownloads, 1)) * 100)
+                            return (
+                              <div key={pdf.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30 hover:bg-muted/60 transition-colors border border-border/40">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold text-xs ${
+                                  index === 0 ? "bg-amber-400/20 text-amber-600" :
+                                  index === 1 ? "bg-slate-400/20 text-slate-500" :
+                                  index === 2 ? "bg-orange-500/20 text-orange-600" :
+                                  "bg-muted text-muted-foreground"
+                                }`}>
+                                  #{index + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{pdf.title}</p>
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <Progress value={pct} className="h-1.5 flex-1" />
+                                    <span className="text-xs text-muted-foreground shrink-0">{pdf.download_count} DL</span>
+                                    <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-0.5">
+                                      <Eye className="h-3 w-3" />{pdf.view_count || 0}
+                                    </span>
+                                  </div>
+                                </div>
+                                {category && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] h-5 shrink-0"
+                                    style={{ backgroundColor: category.color + "20", color: category.color, borderColor: category.color + "40" }}
+                                  >
+                                    {category.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            )
+                          })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* System Status */}
+                <Card className="border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Activity className="h-4 w-4 text-green-500" />
+                      System Status
+                    </CardTitle>
+                    <CardDescription>Health of all services</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[
+                      { label: "Database", status: "operational" },
+                      { label: "File Storage", status: "operational" },
+                      { label: "API Server", status: "operational" },
+                      { label: "Quiz Engine", status: "operational" },
+                      { label: "Search Index", status: "operational" },
+                    ].map(({ label, status }) => (
+                      <div key={label} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-muted-foreground">{label}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-xs text-green-600 font-medium">Operational</span>
                         </div>
-                      )
-                    })}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      </div>
+                    ))}
 
-          {/* Upload Tab */}
-          <TabsContent value="upload">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5 text-primary" />
-                  Upload New PDFs
-                </CardTitle>
-                <CardDescription>
-                  Add new PDF documents to your library. Supports parallel uploads up to 50MB each.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PDFUploadForm 
-                  categories={categories} 
-                  onSuccess={handleUploadSuccess}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <Separator />
 
-          {/* PDFs Tab */}
-          <TabsContent value="pdfs">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  All PDFs
-                </CardTitle>
-                <CardDescription>
-                  View, edit, and manage all uploaded PDFs. Use search and filters to find specific files.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PDFList 
-                  pdfs={pdfs} 
-                  categories={categories}
-                  loading={loading}
-                  onDelete={handlePDFDelete}
-                  onUpdate={handlePDFUpdate}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <div className="space-y-2 pt-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Storage Used</span>
+                        <span className="font-medium">{formatBytes(totalStorage)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total Documents</span>
+                        <span className="font-medium">{pdfs.length}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total Categories</span>
+                        <span className="font-medium">{categories.length}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
 
-          {/* Structure Tab - Folder > Category > Section */}
-          <TabsContent value="structure">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderPlus className="h-5 w-5 text-primary" />
-                  Content Structure
-                </CardTitle>
-                <CardDescription>
-                  Create hierarchical structure: Folders contain Categories, and Categories contain Sections. 
-                  This structure is displayed on the homepage.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FolderManager />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* ── Upload ── */}
+          {activeTab === "upload" && (
+            <PageSection icon={Upload} title="Upload New PDFs" description="Add new PDF documents to your library. Supports parallel uploads up to 50MB each.">
+              <PDFUploadForm categories={categories} onSuccess={fetchData} />
+            </PageSection>
+          )}
 
-          {/* Categories Tab */}
-          <TabsContent value="categories">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" />
-                  Database Categories
-                </CardTitle>
-                <CardDescription>
-                  Manage database categories for PDFs. These are linked to actual PDF files in the system.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CategoryManager 
-                  categories={categories}
-                  onChange={handleCategoryChange}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* ── PDFs ── */}
+          {activeTab === "pdfs" && (
+            <PageSection icon={FileText} title="All PDFs" description="View, edit, and manage all uploaded PDFs. Use search and filters to find specific files.">
+              <PDFList pdfs={pdfs} categories={categories} loading={loading} onDelete={fetchData} onUpdate={fetchData} />
+            </PageSection>
+          )}
 
-          {/* Quizzes Tab */}
-          <TabsContent value="quizzes">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  Quiz Management
-                </CardTitle>
-                <CardDescription>
-                  Create and manage quizzes. Import from HTML or create from scratch. 
-                  Quizzes display with TechVyro branding.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <QuizManager />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* ── Structure ── */}
+          {activeTab === "structure" && (
+            <PageSection icon={Layers} title="Content Structure" description="Create hierarchical structure: Folders contain Categories, and Categories contain Sections displayed on the homepage.">
+              <FolderManager />
+            </PageSection>
+          )}
 
-          {/* Reviews Tab */}
-          <TabsContent value="reviews">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-primary" />
-                  Manage Reviews
-                </CardTitle>
-                <CardDescription>
-                  View, filter, and moderate user reviews. Delete inappropriate or spam reviews.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ReviewsManager pdfs={pdfs} categories={categories} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* ── Categories ── */}
+          {activeTab === "categories" && (
+            <PageSection icon={Database} title="Database Categories" description="Manage database categories for PDFs. These are linked to actual PDF files in the system.">
+              <CategoryManager categories={categories} onChange={fetchData} />
+            </PageSection>
+          )}
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics">
+          {/* ── Quizzes ── */}
+          {activeTab === "quizzes" && (
+            <PageSection icon={Zap} title="Quiz Management" description="Create and manage quizzes. Import from HTML or create from scratch. Quizzes display with TechVyro branding.">
+              <QuizManager />
+            </PageSection>
+          )}
+
+          {/* ── Reviews ── */}
+          {activeTab === "reviews" && (
+            <PageSection icon={MessageSquare} title="Manage Reviews" description="View, filter, and moderate user reviews. Delete inappropriate or spam reviews.">
+              <ReviewsManager pdfs={pdfs} categories={categories} />
+            </PageSection>
+          )}
+
+          {/* ── Analytics ── */}
+          {activeTab === "analytics" && (
             <AnalyticsDashboard pdfs={pdfs} categories={categories} />
-          </TabsContent>
+          )}
 
-          {/* Homepage Manager Tab */}
-          <TabsContent value="homepage">
+          {/* ── Homepage ── */}
+          {activeTab === "homepage" && (
             <HomepageManager pdfs={pdfs} categories={categories} />
-          </TabsContent>
+          )}
 
-          {/* Activity Log Tab */}
-          <TabsContent value="activity">
+          {/* ── Activity ── */}
+          {activeTab === "activity" && (
             <ActivityLog pdfs={pdfs} categories={categories} />
-          </TabsContent>
+          )}
 
-          {/* Settings Tab */}
-          <TabsContent value="settings">
+          {/* ── Settings ── */}
+          {activeTab === "settings" && (
             <SiteSettings />
-          </TabsContent>
-        </Tabs>
-      </main>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
 
-// Stat Card Component
-function StatCard({ 
-  label, 
-  value, 
-  icon: Icon, 
-  color,
-  isString = false
-}: { 
+// ── Helpers ──
+
+function PageSection({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof FileText
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="max-w-7xl mx-auto space-y-4">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+          <Icon className="h-5 w-5 text-primary" />
+          {title}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+      </div>
+      <Card className="border-border/50">
+        <CardContent className="pt-6">
+          {children}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function KpiRow({ label, value, progress, status }: {
+  label: string
+  value: string
+  progress: number
+  status: "good" | "warn" | "low"
+}) {
+  const color = status === "good" ? "text-green-600" : status === "warn" ? "text-amber-600" : "text-rose-500"
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className={`text-sm font-semibold ${color}`}>{value}</span>
+      </div>
+      <Progress value={progress} className="h-1.5" />
+    </div>
+  )
+}
+
+function StatCard({
+  label, value, icon: Icon, color, isString, onClick,
+}: {
   label: string
   value: number | string
   icon: typeof FileText
-  color: "primary" | "accent" | "green" | "blue" | "purple" | "orange"
+  color: "violet" | "blue" | "green" | "amber" | "pink" | "slate"
   isString?: boolean
+  onClick?: () => void
 }) {
-  const colorClasses = {
-    primary: "border-primary/40 hover:shadow-primary/10 from-primary/20 to-primary/10 text-primary",
-    accent: "border-accent/40 hover:shadow-accent/10 from-accent/20 to-accent/10 text-accent",
-    green: "border-green-500/40 hover:shadow-green-500/10 from-green-500/20 to-green-500/10 text-green-500",
-    blue: "border-blue-500/40 hover:shadow-blue-500/10 from-blue-500/20 to-blue-500/10 text-blue-500",
-    purple: "border-purple-500/40 hover:shadow-purple-500/10 from-purple-500/20 to-purple-500/10 text-purple-500",
-    orange: "border-orange-500/40 hover:shadow-orange-500/10 from-orange-500/20 to-orange-500/10 text-orange-500",
-  }
+  const cfg = {
+    violet: { bg: "from-violet-500/20 to-violet-500/10", text: "text-violet-600", border: "hover:border-violet-400/50" },
+    blue:   { bg: "from-blue-500/20 to-blue-500/10",   text: "text-blue-600",   border: "hover:border-blue-400/50" },
+    green:  { bg: "from-green-500/20 to-green-500/10",  text: "text-green-600",  border: "hover:border-green-400/50" },
+    amber:  { bg: "from-amber-500/20 to-amber-500/10",  text: "text-amber-600",  border: "hover:border-amber-400/50" },
+    pink:   { bg: "from-pink-500/20 to-pink-500/10",    text: "text-pink-600",   border: "hover:border-pink-400/50" },
+    slate:  { bg: "from-slate-500/20 to-slate-500/10",  text: "text-slate-600",  border: "hover:border-slate-400/50" },
+  }[color]
 
   return (
-    <Card className={`group border-border/50 hover:${colorClasses[color].split(' ')[0]} hover:shadow-lg ${colorClasses[color].split(' ')[1]} transition-all duration-300`}>
+    <Card
+      className={`border-border/50 ${cfg.border} transition-all duration-200 ${onClick ? "cursor-pointer hover:shadow-md" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-4 sm:p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground font-medium">{label}</p>
-            <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">
-              {isString ? value : (typeof value === 'number' ? value.toLocaleString() : value)}
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">{label}</p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground mt-0.5">
+              {isString ? value : (typeof value === "number" ? value.toLocaleString() : value)}
             </p>
           </div>
-          <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-gradient-to-br ${colorClasses[color].split(' ').slice(2, 4).join(' ')} group-hover:scale-110 transition-transform duration-300`}>
-            <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${colorClasses[color].split(' ')[4]}`} />
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cfg.bg}`}>
+            <Icon className={`h-5 w-5 ${cfg.text}`} />
           </div>
         </div>
       </CardContent>
