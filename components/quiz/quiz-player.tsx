@@ -67,6 +67,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
   const [reviewMode, setReviewMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
+  const [showExitWarning, setShowExitWarning] = useState(false)
   const [playerName, setPlayerName] = useState("")
   const [nameEntered, setNameEntered] = useState(false)
   const [savedToLeaderboard, setSavedToLeaderboard] = useState(false)
@@ -157,6 +158,32 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [started, submitted, currentIndex, questions])
+
+  // Prevent leaving mid-quiz (back button + refresh/close)
+  useEffect(() => {
+    if (!started || submitted) return
+
+    // Push a history state so back button triggers popstate
+    window.history.pushState(null, "", window.location.href)
+
+    const handlePopState = () => {
+      // Push state back to prevent actual navigation
+      window.history.pushState(null, "", window.location.href)
+      setShowExitWarning(true)
+    }
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.removeEventListener("popstate", handlePopState)
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [started, submitted])
 
   const toggleTheme = () => {
     setDarkMode(prev => {
@@ -739,6 +766,45 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
                   onClick={confirmSubmit}
                 >
                   Submit Anyway
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Exit Warning Modal — shown when user tries to go back mid-quiz */}
+      {showExitWarning && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <Card className={`max-w-md w-full p-6 ${darkMode ? "bg-gray-800 border-gray-700" : ""}`}>
+            <div className="text-center">
+              <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold mb-1">Quiz In Progress!</h3>
+              <p className={`text-sm mb-1 ${darkMode ? "text-gray-300" : "text-muted-foreground"}`}>
+                Are you sure you want to leave?
+              </p>
+              <p className={`text-xs mb-5 ${darkMode ? "text-gray-400" : "text-muted-foreground/80"}`}>
+                Please <strong>submit the quiz first</strong> to save your score on the leaderboard. If you leave now, your progress will be lost.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white order-first"
+                  onClick={() => {
+                    setShowExitWarning(false)
+                    confirmSubmit()
+                  }}
+                >
+                  <Send className="h-4 w-4 mr-1.5" />
+                  Submit & Leave
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowExitWarning(false)}
+                >
+                  Continue Quiz
                 </Button>
               </div>
             </div>
