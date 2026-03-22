@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { X, Send, User, Loader2, ChevronDown, Minimize2, GraduationCap, Sparkles, MessageSquareHeart, ArrowLeft, ShieldCheck } from "lucide-react"
+import { X, Send, User, Loader2, ChevronDown, Minimize2, GraduationCap, Sparkles, MessageSquareHeart, ArrowLeft, ShieldCheck, Copy, Check, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -11,6 +11,7 @@ interface Message {
   role: "user" | "assistant"
   content: string
   timestamp: Date
+  streaming?: boolean
 }
 
 interface LiveMessage {
@@ -21,51 +22,188 @@ interface LiveMessage {
 }
 
 const QUICK_PROMPTS = [
-  { label: "📚 PDF Dhundho", text: "Physics ke important PDFs suggest karo" },
-  { label: "💡 Concept Samjho", text: "Newton ke laws simple mein explain karo" },
-  { label: "🎯 Exam Tips", text: "NDA exam 2025 ki best preparation strategy kya hai?" },
+  { label: "📚 PDFs", text: "Physics ke important PDFs suggest karo" },
+  { label: "🧮 Math", text: "Quadratic equation solve karna sikhaao step by step" },
+  { label: "⚛️ Physics", text: "Newton ke 3 laws of motion explain karo examples ke saath" },
+  { label: "🎯 NDA", text: "NDA 2025 exam ki best preparation strategy kya hai?" },
+  { label: "🧬 Bio", text: "Cell division (Mitosis vs Meiosis) ka difference samjhao" },
+  { label: "📝 English", text: "Letter writing format — formal letter kaise likhein?" },
 ]
 
-function formatText(text: string) {
+// ── Rich Markdown Renderer ──────────────────────────
+function renderMarkdown(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = []
   const lines = text.split("\n")
-  return lines.map((line, i) => {
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
     const trimmed = line.trim()
-    if (!trimmed) return <br key={i} />
-    const formatted = trimmed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
-      return (
-        <div key={i} className="flex gap-1.5 mt-0.5">
-          <span className="text-violet-400 mt-0.5 shrink-0 font-bold">›</span>
-          <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^[-•]\s+/, "") }} />
+
+    // Code block
+    if (trimmed.startsWith("```")) {
+      const lang = trimmed.slice(3).trim()
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        codeLines.push(lines[i])
+        i++
+      }
+      nodes.push(
+        <div key={i} className="mt-2 mb-1 rounded-lg overflow-hidden border border-violet-200/40 dark:border-violet-700/30">
+          {lang && (
+            <div className="bg-violet-100/60 dark:bg-violet-900/40 px-2.5 py-0.5 text-[9px] font-mono font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+              {lang}
+            </div>
+          )}
+          <pre className="bg-slate-50 dark:bg-slate-900/60 px-3 py-2 text-[10px] font-mono leading-relaxed overflow-x-auto text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+            {codeLines.join("\n")}
+          </pre>
         </div>
       )
+      i++
+      continue
     }
-    if (/^\d+\.\s/.test(trimmed)) {
-      return (
+
+    // Inline code (single line)
+    if (trimmed.match(/^`[^`]+`$/)) {
+      nodes.push(
+        <code key={i} className="block mt-1 px-2 py-1 bg-slate-100 dark:bg-slate-800/60 rounded text-[10px] font-mono text-violet-700 dark:text-violet-300">
+          {trimmed.slice(1, -1)}
+        </code>
+      )
+      i++
+      continue
+    }
+
+    // Heading ##
+    if (trimmed.startsWith("## ")) {
+      nodes.push(
+        <p key={i} className="mt-2 mb-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wide">
+          {trimmed.slice(3)}
+        </p>
+      )
+      i++; continue
+    }
+    if (trimmed.startsWith("# ")) {
+      nodes.push(
+        <p key={i} className="mt-2 mb-0.5 text-[12px] font-bold text-foreground">
+          {trimmed.slice(2)}
+        </p>
+      )
+      i++; continue
+    }
+
+    // Horizontal rule
+    if (trimmed === "---" || trimmed === "***") {
+      nodes.push(<hr key={i} className="my-1.5 border-border/30" />)
+      i++; continue
+    }
+
+    // Empty line
+    if (!trimmed) {
+      nodes.push(<div key={i} className="h-1" />)
+      i++; continue
+    }
+
+    // Bullet list
+    if (trimmed.startsWith("- ") || trimmed.startsWith("• ") || trimmed.startsWith("* ")) {
+      nodes.push(
         <div key={i} className="flex gap-1.5 mt-0.5">
-          <span className="text-violet-500 shrink-0 font-semibold text-[11px] mt-px">{trimmed.match(/^\d+/)?.[0]}.</span>
-          <span dangerouslySetInnerHTML={{ __html: formatted.replace(/^\d+\.\s+/, "") }} />
+          <span className="text-violet-500 dark:text-violet-400 shrink-0 font-bold mt-px leading-tight">•</span>
+          <span className="leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(trimmed.replace(/^[-•*]\s+/, "")) }} />
         </div>
       )
+      i++; continue
     }
-    return <p key={i} className="mt-0.5 leading-relaxed" dangerouslySetInnerHTML={{ __html: formatted }} />
-  })
+
+    // Numbered list
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.+)$/)
+    if (numMatch) {
+      nodes.push(
+        <div key={i} className="flex gap-1.5 mt-0.5">
+          <span className="text-violet-600 dark:text-violet-400 shrink-0 font-bold text-[10px] min-w-[14px] mt-0.5 leading-tight">{numMatch[1]}.</span>
+          <span className="leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(numMatch[2]) }} />
+        </div>
+      )
+      i++; continue
+    }
+
+    // Regular paragraph
+    nodes.push(
+      <p key={i} className="mt-0.5 leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(trimmed) }} />
+    )
+    i++
+  }
+
+  return nodes
+}
+
+function inlineFormat(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, "<code class=\"px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-mono text-violet-700 dark:text-violet-300\">$1</code>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+}
+
+// ── Copy Button ─────────────────────────────────────
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button
+      onClick={copy}
+      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+      title="Copy"
+    >
+      {copied
+        ? <Check className="h-2.5 w-2.5 text-green-500" />
+        : <Copy className="h-2.5 w-2.5 text-muted-foreground/60" />
+      }
+    </button>
+  )
+}
+
+// ── Suggested Follow-up Questions ──────────────────
+const FOLLOW_UPS: Record<string, string[]> = {
+  physics: ["Formula chart chahiye?", "Practice problems do", "Real life example batao"],
+  math: ["Aur examples do", "Short trick hai koi?", "Practice set chahiye"],
+  chemistry: ["Reaction mechanism explain karo", "Important formulas list karo"],
+  nda: ["Cut-off marks kya hai?", "Study schedule banao", "Important topics batao"],
+  default: ["Aur detail mein batao", "Example do", "Practice questions do"],
+}
+
+function getSuggestedFollowUps(lastMsg: string): string[] {
+  const lower = lastMsg.toLowerCase()
+  if (lower.includes("physics") || lower.includes("newton") || lower.includes("force")) return FOLLOW_UPS.physics
+  if (lower.includes("math") || lower.includes("equation") || lower.includes("algebra")) return FOLLOW_UPS.math
+  if (lower.includes("chemistry") || lower.includes("reaction") || lower.includes("element")) return FOLLOW_UPS.chemistry
+  if (lower.includes("nda") || lower.includes("exam") || lower.includes("preparation")) return FOLLOW_UPS.nda
+  return FOLLOW_UPS.default
 }
 
 // ── AI CHAT MODE ──────────────────────────────────────
 function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Namaste! 🎓 Main TechVyro AI Assistant hoon.\n\nAapki madad kar sakta hoon:\n- **Study questions** — Mathematics, Physics, Chemistry, Biology...\n- **PDFs dhundhna** — library mein available materials\n- **Exam preparation** — NDA, SSC, JEE, NEET tips\n\nKya poochna chahte ho?",
-      timestamp: new Date(),
-    },
-  ])
+  const INITIAL_MSG: Message = {
+    id: "welcome",
+    role: "assistant",
+    content: "**Namaste! 🎓 Main TechVyro AI Assistant hoon.**\n\nMain aapki madad kar sakta hoon:\n- **📚 Study Questions** — Maths, Physics, Chemistry, Biology, English, History...\n- **🔍 PDF Dhundhna** — Library mein available study materials\n- **🎯 Exam Prep** — NDA, JEE, NEET, SSC, UPSC strategies\n- **🧮 Problems Solve** — Numericals, equations, derivations\n\nNeeche se topic choose karo ya apna sawaal type karo! 👇",
+    timestamp: new Date(),
+  }
+
+  const [messages, setMessages] = useState<Message[]>([INITIAL_MSG])
   const [input, setInput] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [streaming, setStreaming] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -75,85 +213,162 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
     setTimeout(() => inputRef.current?.focus(), 150)
   }, [])
 
+  const lastAiMsg = messages.filter(m => m.role === "assistant" && m.id !== "welcome").slice(-1)[0]
+  const suggestions = lastAiMsg ? getSuggestedFollowUps(lastAiMsg.content) : []
+
+  function clearChat() {
+    abortRef.current?.abort()
+    setMessages([INITIAL_MSG])
+    setStreaming(false)
+    setShowSuggestions(false)
+  }
+
   async function sendMessage(text?: string) {
     const content = (text || input).trim()
-    if (!content || loading) return
+    if (!content || streaming) return
 
     const userMsg: Message = { id: Date.now().toString(), role: "user", content, timestamp: new Date() }
-    setMessages(prev => [...prev, userMsg])
+    const aiMsgId = (Date.now() + 1).toString()
+    const aiMsg: Message = { id: aiMsgId, role: "assistant", content: "", timestamp: new Date(), streaming: true }
+
+    setMessages(prev => [...prev, userMsg, aiMsg])
     setInput("")
-    setLoading(true)
+    setStreaming(true)
+    setShowSuggestions(false)
+
+    const history = [...messages, userMsg]
+      .filter(m => m.id !== "welcome" && !m.streaming)
+      .map(m => ({ role: m.role, content: m.content }))
+
+    abortRef.current = new AbortController()
 
     try {
-      const history = [...messages, userMsg]
-        .filter(m => m.id !== "welcome")
-        .map(m => ({ role: m.role, content: m.content }))
-
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: history }),
+        signal: abortRef.current.signal,
       })
-      const data = await res.json()
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.reply || "Kuch gadbad ho gaya, dobara try karo.",
-        timestamp: new Date(),
-      }])
-    } catch {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "Network error. Please dobara try karo.",
-        timestamp: new Date(),
-      }])
+
+      if (!res.ok || !res.body) throw new Error("Stream failed")
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ""
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() ?? ""
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          const data = line.slice(6).trim()
+          if (data === "[DONE]") continue
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.token) {
+              fullText += parsed.token
+              setMessages(prev => prev.map(m =>
+                m.id === aiMsgId ? { ...m, content: fullText } : m
+              ))
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      setMessages(prev => prev.map(m =>
+        m.id === aiMsgId ? { ...m, streaming: false, content: fullText || "Kuch gadbad ho gaya, dobara try karo." } : m
+      ))
+      setShowSuggestions(true)
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId ? { ...m, streaming: false, content: m.content || "Response cancelled." } : m
+        ))
+      } else {
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId ? { ...m, streaming: false, content: "⚠️ Network error. Please dobara try karo." } : m
+        ))
+      }
     } finally {
-      setLoading(false)
+      setStreaming(false)
     }
   }
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 text-sm bg-gradient-to-b from-muted/20 to-background">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 bg-gradient-to-b from-muted/10 to-background">
         {messages.map((msg) => (
-          <div key={msg.id} className={cn("flex gap-2 items-end", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
+          <div key={msg.id} className={cn("flex gap-2", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
+            {/* Avatar */}
             <div className={cn(
-              "shrink-0 flex h-6 w-6 items-center justify-center rounded-full mb-0.5",
+              "shrink-0 flex h-6 w-6 items-center justify-center rounded-full mt-0.5",
               msg.role === "user"
                 ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
                 : "bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/50 dark:to-purple-900/50 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-700/60"
             )}>
               {msg.role === "user" ? <User className="h-3 w-3" /> : <GraduationCap className="h-3 w-3" />}
             </div>
-            <div className={cn(
-              "max-w-[80%] px-3 py-2 rounded-2xl text-xs leading-relaxed",
-              msg.role === "user"
-                ? "bg-gradient-to-br from-violet-600 to-purple-600 text-white rounded-br-sm"
-                : "bg-card border border-border/40 text-foreground rounded-bl-sm shadow-sm"
-            )}>
-              {formatText(msg.content)}
+
+            {/* Bubble */}
+            <div className={cn("group max-w-[82%] flex flex-col gap-0.5", msg.role === "user" ? "items-end" : "items-start")}>
+              <div className={cn(
+                "px-3 py-2 rounded-2xl text-xs leading-relaxed relative",
+                msg.role === "user"
+                  ? "bg-gradient-to-br from-violet-600 to-purple-600 text-white rounded-tr-sm"
+                  : "bg-card border border-border/40 text-foreground rounded-tl-sm shadow-sm"
+              )}>
+                {msg.role === "assistant"
+                  ? <div>{renderMarkdown(msg.content)}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-violet-500 animate-pulse ml-0.5 align-middle" />}</div>
+                  : <p className="text-xs leading-relaxed">{msg.content}</p>
+                }
+              </div>
+
+              {/* Copy + timestamp for AI messages */}
+              {msg.role === "assistant" && !msg.streaming && msg.id !== "welcome" && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <CopyButton text={msg.content} />
+                  <span className="text-[9px] text-muted-foreground/40">
+                    {msg.timestamp.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                  </span>
+                </div>
+              )}
+
+              {/* Timestamp for user messages */}
+              {msg.role === "user" && (
+                <span className="text-[9px] text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {msg.timestamp.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                </span>
+              )}
             </div>
           </div>
         ))}
 
-        {loading && (
-          <div className="flex gap-2 items-end">
+        {/* Streaming thinking dots (before first token) */}
+        {streaming && messages[messages.length - 1]?.content === "" && (
+          <div className="flex gap-2">
             <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/50 dark:to-purple-900/50 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-700/60">
               <GraduationCap className="h-3 w-3" />
             </div>
-            <div className="bg-card border border-border/40 px-3 py-2.5 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1">
+            <div className="bg-card border border-border/40 px-3 py-2.5 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "0ms" }} />
               <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "150ms" }} />
               <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Quick prompts (on welcome only) */}
       {messages.length === 1 && (
-        <div className="px-3 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-3 pb-2 flex gap-1.5 overflow-x-auto no-scrollbar">
           {QUICK_PROMPTS.map((p) => (
             <button
               key={p.label}
@@ -161,6 +376,21 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
               className="shrink-0 px-2.5 py-1.5 rounded-full border border-violet-200/60 dark:border-violet-700/40 bg-violet-50/50 dark:bg-violet-950/30 hover:bg-violet-100/60 dark:hover:bg-violet-900/40 transition-colors text-[11px] text-violet-700 dark:text-violet-300 font-medium whitespace-nowrap"
             >
               {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Follow-up suggestions */}
+      {showSuggestions && suggestions.length > 0 && !streaming && (
+        <div className="px-3 pb-1.5 flex gap-1.5 overflow-x-auto no-scrollbar">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => { sendMessage(s); setShowSuggestions(false) }}
+              className="shrink-0 px-2.5 py-1 rounded-full border border-violet-200/60 dark:border-violet-700/40 bg-violet-50/40 dark:bg-violet-950/20 hover:bg-violet-100/60 dark:hover:bg-violet-900/30 transition-colors text-[10px] text-violet-600 dark:text-violet-400 whitespace-nowrap"
+            >
+              {s}
             </button>
           ))}
         </div>
@@ -183,30 +413,58 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
         </button>
       </div>
 
+      {/* Input area */}
       <div className="shrink-0 border-t border-border/40 px-3 py-2.5 bg-muted/10">
         <div className="flex gap-2">
+          {/* Stop / Clear buttons */}
+          {streaming ? (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+              title="Stop generation"
+            >
+              <span className="h-3 w-3 rounded-sm bg-red-500" />
+            </button>
+          ) : messages.length > 1 ? (
+            <button
+              onClick={clearChat}
+              className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/60 text-muted-foreground transition-colors"
+              title="Clear chat"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+
           <Input
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
             placeholder="Kuch bhi poochho..."
-            className="h-9 text-xs rounded-xl border-border/50 bg-background focus:border-violet-400 transition-colors"
-            disabled={loading}
+            className="h-9 text-xs rounded-xl border-border/50 bg-background focus:border-violet-400 transition-colors flex-1"
+            disabled={streaming}
+            maxLength={500}
           />
           <Button
             size="sm"
             onClick={() => sendMessage()}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || streaming}
             className="h-9 w-9 p-0 shrink-0 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-sm shadow-violet-500/30 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground text-center mt-1.5 flex items-center justify-center gap-1">
-          <Sparkles className="h-2.5 w-2.5" />
-          TechVyro AI — GPT-4o powered
-        </p>
+        <div className="flex items-center justify-between mt-1.5">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Sparkles className="h-2.5 w-2.5 text-violet-400" />
+            GPT-4o powered • Streaming
+          </p>
+          {input.length > 400 && (
+            <span className={cn("text-[9px]", input.length > 480 ? "text-red-400" : "text-muted-foreground/60")}>
+              {input.length}/500
+            </span>
+          )}
+        </div>
       </div>
     </>
   )
