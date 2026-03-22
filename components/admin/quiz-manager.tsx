@@ -161,11 +161,16 @@ export function QuizManager() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const jsonImportRef = useRef<HTMLInputElement>(null)
 
-  // Multi-file upload
+  // Multi-file HTML upload
   const [uploadEntries, setUploadEntries] = useState<{
-    id: string; file: File
+    id: string; file: File | null; fileName: string
     status: "pending" | "parsing" | "ready" | "error"
     quiz: Quiz | null; error?: string
+    included: boolean
+    conflictId: string | null
+    conflictAction: "skip" | "replace" | "copy"
+    expanded: boolean
+    editingTitle: boolean
     settings: { category: string; section: string; difficulty: "easy"|"medium"|"hard"; visibility: VisibilityType; tags: string[]; structureLocation: { folderId:string;categoryId:string;sectionId:string } }
   }[]>([])
   const [dragActive, setDragActive] = useState(false)
@@ -176,6 +181,7 @@ export function QuizManager() {
   })
   const [showGlobalSettings, setShowGlobalSettings] = useState(false)
   const [importTab, setImportTab] = useState<"html"|"json">("html")
+  const [showPasteHtml, setShowPasteHtml] = useState(false)
 
   // ── JSON Import state ──────────────────────────────────────────────────────
   type ConflictAction = "skip" | "replace" | "copy"
@@ -651,25 +657,76 @@ export function QuizManager() {
     files.length ? processMultipleFiles(files) : toast.error("Please select HTML files")
     if (e.target) e.target.value = ""
   }
+
+  const makeHtmlEntry = (file: File | null, fileName: string) => ({
+    id: generateId(), file, fileName,
+    status: "pending" as const, quiz: null as Quiz | null,
+    included: true, conflictId: null as string | null, conflictAction: "copy" as const,
+    expanded: false, editingTitle: false,
+    settings: { ...globalSettings },
+  })
+
   const processMultipleFiles = async (files: File[]) => {
-    const entries = files.map(file => ({ id: generateId(), file, status: "pending" as const, quiz: null as Quiz | null, settings: { ...globalSettings } }))
+    const entries = files.map(f => makeHtmlEntry(f, f.name))
     setUploadEntries(prev => [...prev, ...entries])
     for (const entry of entries) {
       setUploadEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: "parsing" as const } : e))
       try {
-        const text = await entry.file.text()
+        const text = await entry.file!.text()
         const quiz = parseQuizHtml(text)
         if (quiz) {
-          setUploadEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: "ready" as const, quiz: { ...quiz, category: e.settings.category, section: e.settings.section, difficulty: e.settings.difficulty, visibility: e.settings.visibility, tags: e.settings.tags } } : e))
+          const conflictId = quizzes.find(q => q.title.toLowerCase().trim() === quiz.title.toLowerCase().trim())?.id || null
+          setUploadEntries(prev => prev.map(e => e.id === entry.id ? {
+            ...e, status: "ready" as const, conflictId,
+            quiz: { ...quiz, category: e.settings.category, section: e.settings.section, difficulty: e.settings.difficulty, visibility: e.settings.visibility, tags: e.settings.tags }
+          } : e))
         } else {
-          setUploadEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: "error" as const, error: "Could not parse quiz" } : e))
+          setUploadEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: "error" as const, error: "Could not parse quiz — format may not be supported" } : e))
         }
       } catch {
         setUploadEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: "error" as const, error: "Failed to read file" } : e))
       }
     }
   }
+
+  const retryUploadEntry = async (id: string) => {
+    const entry = uploadEntries.find(e => e.id === id)
+    if (!entry?.file) return
+    setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, status: "parsing" as const, error: undefined } : e))
+    try {
+      const text = await entry.file.text()
+      const quiz = parseQuizHtml(text)
+      if (quiz) {
+        const conflictId = quizzes.find(q => q.title.toLowerCase().trim() === quiz.title.toLowerCase().trim())?.id || null
+        setUploadEntries(prev => prev.map(e => e.id === id ? {
+          ...e, status: "ready" as const, conflictId,
+          quiz: { ...quiz, category: e.settings.category, section: e.settings.section, difficulty: e.settings.difficulty, visibility: e.settings.visibility, tags: e.settings.tags }
+        } : e))
+      } else {
+        setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, status: "error" as const, error: "Could not parse quiz — format may not be supported" } : e))
+      }
+    } catch {
+      setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, status: "error" as const, error: "Failed to read file" } : e))
+    }
+  }
+
+  const addPastedHtmlEntry = () => {
+    if (!importHtml.trim()) return
+    const quiz = parseQuizHtml(importHtml)
+    if (!quiz) { toast.error("Could not parse quiz from pasted HTML"); return }
+    const conflictId = quizzes.find(q => q.title.toLowerCase().trim() === quiz.title.toLowerCase().trim())?.id || null
+    const entry = { ...makeHtmlEntry(null, "Pasted HTML"), status: "ready" as const, conflictId, quiz }
+    setUploadEntries(prev => [...prev, entry])
+    setImportHtml(""); setParsedPreview(null); setShowPasteHtml(false)
+    toast.success(`Parsed "${quiz.title}" — ${quiz.questions.length} questions`)
+  }
+
   const removeUploadEntry = (id: string) => setUploadEntries(prev => prev.filter(e => e.id !== id))
+  const toggleHtmlEntry = (id: string) => setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, included: !e.included } : e))
+  const setHtmlConflictAction = (id: string, action: "skip"|"replace"|"copy") => setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, conflictAction: action } : e))
+  const toggleHtmlExpanded = (id: string) => setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, expanded: !e.expanded } : e))
+  const renameHtmlQuiz = (id: string, title: string) => setUploadEntries(prev => prev.map(e => e.id === id && e.quiz ? { ...e, quiz: { ...e.quiz, title } } : e))
+
   const updateEntrySettings = (id: string, key: string, value: any) => {
     setUploadEntries(prev => prev.map(e => {
       if (e.id !== id) return e
@@ -684,15 +741,33 @@ export function QuizManager() {
     toast.success("Global settings applied to all files")
   }
   const importAllReady = () => {
-    const ready = uploadEntries.filter(e => e.status === "ready" && e.quiz)
-    if (!ready.length) { toast.error("No valid quizzes to import"); return }
-    saveQuizzes([...quizzes, ...ready.map(e => e.quiz!)])
+    const toImport: Quiz[] = []
+    const toReplace: Quiz[] = []
+    for (const e of uploadEntries) {
+      if (!e.included || e.status !== "ready" || !e.quiz) continue
+      if (e.conflictId) {
+        if (e.conflictAction === "skip") continue
+        if (e.conflictAction === "replace") { toReplace.push({ ...e.quiz, id: e.conflictId }); continue }
+        toImport.push({ ...e.quiz, title: `${e.quiz.title} (Copy)` })
+      } else {
+        toImport.push(e.quiz)
+      }
+    }
+    if (!toImport.length && !toReplace.length) { toast.error("No quizzes selected to import"); return }
+    const updated = [
+      ...quizzes.map(q => { const r = toReplace.find(rq => rq.id === q.id); return r || q }),
+      ...toImport,
+    ]
+    saveQuizzes(updated)
     setUploadEntries([]); setShowImportDialog(false)
-    toast.success(`Imported ${ready.length} quizzes successfully!`)
+    toast.success(`Imported ${toImport.length} quiz${toImport.length !== 1 ? "zes" : ""}${toReplace.length ? `, replaced ${toReplace.length}` : ""}`)
   }
 
+  const htmlReadyCount = uploadEntries.filter(e => e.included && e.status === "ready").length
+  const htmlConflictCount = uploadEntries.filter(e => e.included && e.status === "ready" && e.conflictId && e.conflictAction !== "skip").length
+
   const resetImportDialog = () => {
-    setImportHtml(""); setParsedPreview(null)
+    setImportHtml(""); setParsedPreview(null); setShowPasteHtml(false)
     setUploadEntries([])
     setJsonEntries([]); setPasteJsonText(""); setShowPasteJson(false); setShowJsonGlobalSettings(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
@@ -1257,8 +1332,9 @@ export function QuizManager() {
 
               {/* HTML Tab */}
               <TabsContent value="html" className="space-y-4 mt-4">
+                {/* Drop zone */}
                 <div
-                  className={`relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center transition-all cursor-pointer group ${dragActive ? "border-primary bg-primary/10" : "border-border hover:border-primary/50 hover:bg-muted/30"}`}
+                  className={`relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center transition-all cursor-pointer group ${dragActive ? "border-primary bg-primary/10 scale-[1.01]" : "border-border hover:border-primary/50 hover:bg-muted/30"}`}
                   onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}>
                   <input ref={fileInputRef} type="file" accept=".html,.htm" multiple onChange={handleMultiFileChange} className="hidden" />
@@ -1266,131 +1342,248 @@ export function QuizManager() {
                     <Upload className="h-5 w-5 text-primary" />
                   </div>
                   <p className="font-semibold text-xs sm:text-sm">Drop HTML files here or click to select</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Multiple files supported — batch import</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Multiple files — batch import with per-file control</p>
                 </div>
 
+                {/* Global Settings */}
                 {uploadEntries.length > 0 && (
-                  <>
-                    {/* Global settings */}
-                    <Collapsible open={showGlobalSettings} onOpenChange={setShowGlobalSettings}>
-                      <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden">
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" className="w-full flex items-center justify-between p-3 h-auto hover:bg-muted/50">
-                            <div className="flex items-center gap-2">
-                              <Settings2 className="h-4 w-4 text-primary" />
-                              <span className="font-medium text-xs sm:text-sm">Global Settings</span>
-                            </div>
-                            <ChevronDown className={`h-4 w-4 transition-transform ${showGlobalSettings ? "rotate-180" : ""}`} />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="p-3 border-t border-border/50 space-y-3">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label className="text-xs">Category</Label>
-                                <Select value={globalSettings.category} onValueChange={v => setGlobalSettings(p => ({ ...p, category: v }))}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label className="text-xs">Section</Label>
-                                <Select value={globalSettings.section} onValueChange={v => setGlobalSettings(p => ({ ...p, section: v }))}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{SECTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label className="text-xs">Difficulty</Label>
-                                <Select value={globalSettings.difficulty} onValueChange={v => setGlobalSettings(p => ({ ...p, difficulty: v as any }))}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{DIFFICULTIES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label className="text-xs">Visibility</Label>
-                                <Select value={globalSettings.visibility} onValueChange={v => setGlobalSettings(p => ({ ...p, visibility: v as any }))}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="public">Public</SelectItem>
-                                    <SelectItem value="unlisted">Unlisted</SelectItem>
-                                    <SelectItem value="private">Private</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <StructureSelector value={globalSettings.structureLocation} onChange={loc => setGlobalSettings(p => ({ ...p, structureLocation: loc }))} placeholder="Content location" className="w-full text-xs" />
-                            <Button size="sm" onClick={applyGlobalSettings} className="w-full h-8 text-xs">Apply to All Files</Button>
+                  <Collapsible open={showGlobalSettings} onOpenChange={setShowGlobalSettings}>
+                    <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full flex items-center justify-between p-3 h-auto hover:bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <Settings2 className="h-4 w-4 text-primary" />
+                            <span className="font-medium text-xs sm:text-sm">Global Settings (apply to all)</span>
                           </div>
-                        </CollapsibleContent>
-                      </div>
-                    </Collapsible>
-
-                    {/* File list */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs sm:text-sm font-medium">{uploadEntries.length} file(s)</p>
-                        <div className="flex gap-1.5">
-                          <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600">{uploadEntries.filter(e=>e.status==="ready").length} ready</Badge>
-                          {uploadEntries.some(e=>e.status==="error") && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-600">{uploadEntries.filter(e=>e.status==="error").length} failed</Badge>}
-                        </div>
-                      </div>
-                      <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                        {uploadEntries.map(entry => (
-                          <div key={entry.id} className={`p-2 sm:p-3 rounded-lg border transition-all ${entry.status==="ready" ? "border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800" : entry.status==="error" ? "border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800" : "border-border bg-muted/30"}`}>
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                {entry.status==="parsing" && <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />}
-                                {entry.status==="ready" && <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />}
-                                {entry.status==="error" && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-medium text-xs sm:text-sm truncate">{entry.file.name}</p>
-                                  {entry.quiz && <p className="text-xs text-muted-foreground truncate">{entry.quiz.title} — {entry.quiz.questions.length} questions</p>}
-                                  {entry.error && <p className="text-xs text-red-500">{entry.error}</p>}
-                                </div>
-                              </div>
-                              <Button variant="ghost" size="sm" onClick={() => removeUploadEntry(entry.id)} className="h-7 w-7 p-0 shrink-0"><X className="h-3 w-3" /></Button>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${showGlobalSettings ? "rotate-180" : ""}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="p-3 border-t border-border/50 space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Category</Label>
+                              <Select value={globalSettings.category} onValueChange={v => setGlobalSettings(p => ({ ...p, category: v }))}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                              </Select>
                             </div>
-                            {entry.status === "ready" && (
-                              <div className="grid grid-cols-2 gap-1.5 mt-2">
-                                <Select value={entry.settings.category} onValueChange={v => updateEntrySettings(entry.id,"category",v)}>
-                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Select value={entry.settings.difficulty} onValueChange={v => updateEntrySettings(entry.id,"difficulty",v)}>
-                                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{DIFFICULTIES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
-                                </Select>
+                            <div>
+                              <Label className="text-xs">Difficulty</Label>
+                              <Select value={globalSettings.difficulty} onValueChange={v => setGlobalSettings(p => ({ ...p, difficulty: v as any }))}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>{DIFFICULTIES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Section</Label>
+                              <Select value={globalSettings.section} onValueChange={v => setGlobalSettings(p => ({ ...p, section: v }))}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>{SECTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Visibility</Label>
+                              <Select value={globalSettings.visibility} onValueChange={v => setGlobalSettings(p => ({ ...p, visibility: v as any }))}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="public">Public</SelectItem>
+                                  <SelectItem value="unlisted">Unlisted</SelectItem>
+                                  <SelectItem value="private">Private</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <Button size="sm" onClick={applyGlobalSettings} className="w-full h-8 text-xs">Apply to All Files</Button>
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                )}
+
+                {/* File list */}
+                {uploadEntries.length > 0 && (
+                  <div className="space-y-2">
+                    {/* List header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium">{uploadEntries.length} file{uploadEntries.length !== 1 ? "s" : ""}</p>
+                        <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 h-5">{uploadEntries.filter(e=>e.status==="ready").length} ready</Badge>
+                        {uploadEntries.some(e=>e.status==="error") && <Badge variant="secondary" className="text-[10px] bg-red-500/10 text-red-600 h-5">{uploadEntries.filter(e=>e.status==="error").length} failed</Badge>}
+                        {uploadEntries.some(e=>e.status==="parsing") && <Badge variant="secondary" className="text-[10px] h-5">parsing…</Badge>}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2"
+                          onClick={() => setUploadEntries(prev => prev.map(e => ({ ...e, included: true })))}>All</Button>
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2"
+                          onClick={() => setUploadEntries(prev => prev.map(e => ({ ...e, included: false })))}>None</Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 max-h-[360px] overflow-y-auto pr-0.5">
+                      {uploadEntries.map(entry => {
+                        const qCount = entry.quiz?.questions.length || 0
+                        const mcqCount = entry.quiz?.questions.filter(q => q.type === "mcq").length || 0
+                        const tfCount = entry.quiz?.questions.filter(q => q.type === "truefalse").length || 0
+                        const msCount = entry.quiz?.questions.filter(q => q.type === "multiselect").length || 0
+                        return (
+                          <div key={entry.id} className={`rounded-lg border overflow-hidden transition-all ${
+                            !entry.included ? "opacity-60 border-border bg-muted/20"
+                            : entry.status === "ready" ? "border-green-200/70 bg-green-50/40 dark:bg-green-950/20 dark:border-green-800/60"
+                            : entry.status === "error" ? "border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800"
+                            : entry.status === "parsing" ? "border-primary/40 bg-primary/5"
+                            : "border-border bg-muted/30"
+                          }`}>
+                            {/* Entry header row */}
+                            <div className="flex items-center gap-2 p-2.5">
+                              <Checkbox checked={entry.included} onCheckedChange={() => toggleHtmlEntry(entry.id)} className="shrink-0" />
+                              {entry.status === "parsing" && <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />}
+                              {entry.status === "ready" && <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />}
+                              {entry.status === "error" && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                              {entry.status === "pending" && <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
+
+                              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleHtmlExpanded(entry.id)}>
+                                <p className="font-medium text-xs truncate">{entry.fileName}</p>
+                                {entry.quiz && (
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{entry.quiz.title}</span>
+                                    <span className="text-[10px] text-muted-foreground">{qCount} Q</span>
+                                    {mcqCount > 0 && <span className="text-[10px] text-blue-600">{mcqCount} MCQ</span>}
+                                    {tfCount > 0 && <span className="text-[10px] text-green-600">{tfCount} T/F</span>}
+                                    {msCount > 0 && <span className="text-[10px] text-purple-600">{msCount} Multi</span>}
+                                    {entry.quiz.timeLimit > 0 && <span className="text-[10px] text-muted-foreground">{Math.floor(entry.quiz.timeLimit/60)}min</span>}
+                                    {entry.conflictId && (
+                                      <Badge variant="outline" className="text-[9px] px-1 h-4 border-amber-400 text-amber-600 gap-0.5">
+                                        <AlertCircle className="h-2.5 w-2.5" /> Conflict
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {entry.error && <p className="text-[10px] text-red-500 mt-0.5">{entry.error}</p>}
+                              </div>
+
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                {entry.status === "ready" && (
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0"
+                                    onClick={() => toggleHtmlExpanded(entry.id)}>
+                                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${entry.expanded ? "rotate-180" : ""}`} />
+                                  </Button>
+                                )}
+                                {entry.status === "error" && entry.file && (
+                                  <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1 text-primary"
+                                    onClick={() => retryUploadEntry(entry.id)}>
+                                    <RefreshCw className="h-3 w-3" /> Retry
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-red-50 hover:text-red-500"
+                                  onClick={() => removeUploadEntry(entry.id)}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Expanded detail */}
+                            {entry.expanded && entry.status === "ready" && entry.quiz && (
+                              <div className="border-t border-border/40">
+                                {/* Editable title */}
+                                <div className="px-2.5 pt-2 pb-1">
+                                  <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Quiz Title</Label>
+                                  <Input
+                                    value={entry.quiz.title}
+                                    onChange={e => renameHtmlQuiz(entry.id, e.target.value)}
+                                    className="h-7 text-xs mt-0.5"
+                                    placeholder="Quiz title"
+                                  />
+                                </div>
+
+                                {/* Per-entry settings */}
+                                <div className="px-2.5 pb-2 grid grid-cols-4 gap-1.5">
+                                  <Select value={entry.settings.category} onValueChange={v => updateEntrySettings(entry.id,"category",v)}>
+                                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                  <Select value={entry.settings.difficulty} onValueChange={v => updateEntrySettings(entry.id,"difficulty",v)}>
+                                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>{DIFFICULTIES.map(d => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                  <Select value={entry.settings.section} onValueChange={v => updateEntrySettings(entry.id,"section",v)}>
+                                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>{SECTIONS.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                  <Select value={entry.settings.visibility} onValueChange={v => updateEntrySettings(entry.id,"visibility",v)}>
+                                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="public" className="text-xs">Public</SelectItem>
+                                      <SelectItem value="unlisted" className="text-xs">Unlisted</SelectItem>
+                                      <SelectItem value="private" className="text-xs">Private</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {/* Conflict resolution */}
+                                {entry.conflictId && entry.included && (
+                                  <div className="mx-2.5 mb-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/60">
+                                    <p className="text-[10px] font-medium text-amber-700 dark:text-amber-400 mb-1.5">A quiz with this title already exists:</p>
+                                    <div className="flex gap-1">
+                                      {(["skip", "replace", "copy"] as const).map(action => (
+                                        <button key={action} onClick={() => setHtmlConflictAction(entry.id, action)}
+                                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-all font-medium ${entry.conflictAction === action ? action === "skip" ? "bg-muted border-muted-foreground/40 text-foreground" : action === "replace" ? "bg-red-500 border-red-500 text-white" : "bg-primary border-primary text-white" : "border-border text-muted-foreground hover:bg-muted"}`}>
+                                          {action === "skip" ? "Skip" : action === "replace" ? "Replace" : "Import as Copy"}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Collapsed conflict badge */}
+                            {!entry.expanded && entry.conflictId && entry.included && entry.status === "ready" && (
+                              <div className="px-2.5 pb-2">
+                                <div className="flex items-center gap-1 p-1.5 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/60">
+                                  <AlertCircle className="h-3 w-3 text-amber-500 shrink-0" />
+                                  <p className="text-[10px] text-amber-700 dark:text-amber-400 flex-1">Conflict detected — expand to resolve</p>
+                                  <button onClick={() => toggleHtmlExpanded(entry.id)} className="text-[10px] text-amber-600 underline">Expand</button>
+                                </div>
                               </div>
                             )}
                           </div>
-                        ))}
-                      </div>
+                        )
+                      })}
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Paste HTML */}
-                <Collapsible>
+                <Collapsible open={showPasteHtml} onOpenChange={setShowPasteHtml}>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground">
                       <FileText className="h-3 w-3 mr-1.5" /> Or paste HTML code directly <ChevronDown className="h-3 w-3 ml-auto" />
                     </Button>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-2">
+                  <CollapsibleContent className="pt-2 space-y-2">
                     <Textarea value={importHtml} onChange={e => {
                       setImportHtml(e.target.value)
                       if (e.target.value.length > 100) {
                         const quiz = parseQuizHtml(e.target.value)
                         setParsedPreview(quiz ? { title: quiz.title, count: quiz.questions.length } : null)
-                      }
+                      } else { setParsedPreview(null) }
                     }} placeholder="Paste quiz HTML code here..." rows={4} className="font-mono text-xs" />
                     {parsedPreview && (
-                      <div className="mt-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-2">
+                      <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-2">
                         <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                        <p className="text-xs text-green-700 dark:text-green-400 font-medium">{parsedPreview.title} — {parsedPreview.count} questions detected</p>
+                        <p className="text-xs text-green-700 dark:text-green-400 font-medium flex-1">{parsedPreview.title} — {parsedPreview.count} questions detected</p>
                       </div>
                     )}
+                    {!parsedPreview && importHtml.length > 100 && (
+                      <div className="p-2 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                        <p className="text-xs text-red-600">Could not detect a quiz in this HTML</p>
+                      </div>
+                    )}
+                    <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={addPastedHtmlEntry} disabled={!parsedPreview}>
+                      <CheckCircle className="h-3.5 w-3.5" /> Parse &amp; Add to List
+                    </Button>
                   </CollapsibleContent>
                 </Collapsible>
               </TabsContent>
@@ -1649,13 +1842,11 @@ export function QuizManager() {
 
           <DialogFooter className="shrink-0 border-t pt-3 gap-2 flex-col sm:flex-row">
             <Button variant="outline" onClick={() => { setShowImportDialog(false); resetImportDialog() }} size="sm" className="w-full sm:w-auto text-xs">Cancel</Button>
-            {importTab === "html" && uploadEntries.filter(e=>e.status==="ready").length > 0 ? (
+            {importTab === "html" && htmlReadyCount > 0 ? (
               <Button onClick={importAllReady} size="sm" className="w-full sm:w-auto text-xs">
-                <Upload className="h-3.5 w-3.5 mr-1.5" /> Import {uploadEntries.filter(e=>e.status==="ready").length} Quiz(es)
-              </Button>
-            ) : importTab === "html" && importHtml && parsedPreview ? (
-              <Button onClick={() => { const quiz = parseQuizHtml(importHtml); if (quiz) { saveQuizzes([...quizzes, quiz]); setShowImportDialog(false); resetImportDialog(); toast.success(`Imported "${quiz.title}"`) } }} size="sm" className="w-full sm:w-auto text-xs">
-                <Upload className="h-3.5 w-3.5 mr-1.5" /> Import Quiz
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Import {htmlReadyCount} Quiz{htmlReadyCount !== 1 ? "zes" : ""}
+                {htmlConflictCount > 0 && <span className="ml-1.5 text-[10px] opacity-80">({htmlConflictCount} conflict{htmlConflictCount !== 1 ? "s" : ""})</span>}
               </Button>
             ) : importTab === "json" && jsonReadyCount > 0 ? (
               <Button onClick={importAllJsonQuizzes} size="sm" className="w-full sm:w-auto text-xs bg-blue-500 hover:bg-blue-600">
