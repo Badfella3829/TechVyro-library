@@ -218,6 +218,7 @@ function AdminLiveChat({ onBack }: { onBack: () => void }) {
   const [studentName, setStudentName] = useState("")
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [ended, setEnded] = useState(false)
 
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([])
   const [input, setInput] = useState("")
@@ -229,6 +230,9 @@ function AdminLiveChat({ onBack }: { onBack: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sessionRef = useRef<string | null>(null)
+  const studentNameRef = useRef<string>("")
+  const endedRef = useRef(false)
 
   useEffect(() => {
     setTimeout(() => nameRef.current?.focus(), 150)
@@ -237,6 +241,60 @@ function AdminLiveChat({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [liveMessages])
+
+  // Keep refs in sync so beforeunload / unmount can access current values
+  useEffect(() => { sessionRef.current = sessionId }, [sessionId])
+  useEffect(() => { studentNameRef.current = studentName }, [studentName])
+  useEffect(() => { endedRef.current = ended }, [ended])
+
+  // Notify admin when user leaves (tab close / refresh)
+  useEffect(() => {
+    function handleBeforeUnload() {
+      if (sessionRef.current) {
+        navigator.sendBeacon("/api/admin-chat/end", JSON.stringify({
+          sessionId: sessionRef.current,
+          studentName: studentNameRef.current,
+          reason: "tab_closed",
+        }))
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [])
+
+  // Notify admin when component unmounts (back/close button)
+  useEffect(() => {
+    return () => {
+      if (sessionRef.current && !endedRef.current) {
+        fetch("/api/admin-chat/end", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionRef.current,
+            studentName: studentNameRef.current,
+            reason: "left",
+          }),
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function endSessionManually() {
+    if (!sessionId || ended) return
+    setEnded(true)
+    endedRef.current = true
+    if (pollRef.current) clearInterval(pollRef.current)
+    try {
+      await fetch("/api/admin-chat/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, studentName, reason: "ended_by_user" }),
+      })
+    } catch {}
+    onBack()
+  }
 
   const pollMessages = useCallback(async (sid: string, since: string | null) => {
     try {
@@ -443,10 +501,18 @@ function AdminLiveChat({ onBack }: { onBack: () => void }) {
             {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground text-center mt-1.5 flex items-center justify-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-          Live Chat — Admin replies on Telegram
-        </p>
+        <div className="flex items-center justify-between mt-1.5">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+            Live Chat — Admin Telegram pe hai
+          </p>
+          <button
+            onClick={endSessionManually}
+            className="text-[10px] text-red-500 hover:text-red-600 font-medium transition-colors"
+          >
+            Chat Band Karo ✕
+          </button>
+        </div>
       </div>
     </>
   )
