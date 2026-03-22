@@ -71,7 +71,7 @@ function groupPdfsByCategory(pdfs: PDF[]): Record<string, PDF[]> {
   }, {} as Record<string, PDF[]>)
 }
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const configured = isSupabaseConfigured()
   const [pdfs, categories] = configured 
     ? await Promise.all([getPDFs(), getCategories()])
@@ -80,6 +80,7 @@ export default async function HomePage() {
   const stats = getStats(pdfs, categories)
   const featured = getFeaturedPDFs(pdfs)
   const pdfsByCategory = groupPdfsByCategory(pdfs)
+  const { q: initialSearch = "" } = await searchParams
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,7 +151,7 @@ export default async function HomePage() {
                 </div>
               </div>
             }>
-              <PDFGrid pdfs={pdfs} categories={categories} />
+              <PDFGrid pdfs={pdfs} categories={categories} initialSearch={initialSearch} />
             </Suspense>
           </div>
         </section>

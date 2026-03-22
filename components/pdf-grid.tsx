@@ -3,7 +3,6 @@
 import { useMemo, useState, useCallback } from "react"
 import Link from "next/link"
 import { PDFCard } from "@/components/pdf-card"
-import { SearchBar } from "@/components/search-bar"
 import { Empty } from "@/components/ui/empty"
 import { 
   FileText, ArrowUpDown, Clock, Eye, Download, SortAsc, Heart, 
@@ -40,10 +39,11 @@ const ITEMS_PER_PAGE = 20
 interface PDFGridProps {
   pdfs: PDF[]
   categories: Category[]
+  initialSearch?: string
 }
 
-export function PDFGrid({ pdfs, categories }: PDFGridProps) {
-  const [search, setSearch] = useState("")
+export function PDFGrid({ pdfs, categories, initialSearch = "" }: PDFGridProps) {
+  const [search, setSearch] = useState(initialSearch)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>("newest")
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
@@ -249,10 +249,6 @@ export function PDFGrid({ pdfs, categories }: PDFGridProps) {
       {/* Search and Filters */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <SearchBar value={search} onChange={setSearch} />
-          </div>
-          
           {/* Mobile Filter Button + Results */}
           <div className="flex sm:hidden items-center gap-2">
             <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>

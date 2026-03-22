@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { FileText, Settings, Home, ExternalLink, Search, X, Sparkles, Clock, TrendingUp, Filter, ChevronDown, Flame, Download, Star, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,7 @@ const subjectSuggestions = [
 ]
 
 export function Header() {
+  const router = useRouter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isScrolled, setIsScrolled] = useState(false)
@@ -108,13 +110,9 @@ export function Header() {
     e.preventDefault()
     if (searchQuery.trim()) {
       saveRecentSearch(searchQuery.trim())
-      // Scroll to content section
-      const contentSection = document.getElementById("content")
-      if (contentSection) {
-        contentSection.scrollIntoView({ behavior: "smooth" })
-      }
       setSearchOpen(false)
       setShowSuggestions(false)
+      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}#content`)
     }
   }
 
@@ -122,10 +120,7 @@ export function Header() {
     setSearchQuery(suggestion)
     saveRecentSearch(suggestion)
     setShowSuggestions(false)
-    const contentSection = document.getElementById("content")
-    if (contentSection) {
-      contentSection.scrollIntoView({ behavior: "smooth" })
-    }
+    router.push(`/?q=${encodeURIComponent(suggestion)}#content`)
   }
 
   const filteredSuggestions = searchQuery
