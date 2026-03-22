@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 function verifyAdminToken(token: string | null): boolean {
   if (!token) return false
@@ -24,9 +24,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   try {
-    const supabase = await createClient()
-    if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 })
-
+    const supabase = createAdminClient()
     const { error } = await supabase.from("quiz_results").delete().eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 function verifyAdminToken(token: string | null): boolean {
   if (!token) return false
@@ -45,8 +46,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const supabase = await createClient()
-    if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 })
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from("quizzes")
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ quiz: data })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

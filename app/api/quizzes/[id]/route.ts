@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 function verifyAdminToken(token: string | null): boolean {
   if (!token) return false
@@ -44,8 +45,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   try {
     const body = await request.json()
-    const supabase = await createClient()
-    if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 })
+    const supabase = createAdminClient()
 
     const updateData: Record<string, unknown> = {}
     if (body.title !== undefined) updateData.title = body.title
@@ -82,9 +82,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   try {
-    const supabase = await createClient()
-    if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 })
-
+    const supabase = createAdminClient()
     const { error } = await supabase.from("quizzes").delete().eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
