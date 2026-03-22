@@ -205,7 +205,7 @@ export function QuizSection() {
 
             {/* Leaderboard */}
             <div className="lg:col-span-1">
-              <Card className="overflow-hidden border-border/50 flex flex-col h-full">
+              <Card className="overflow-hidden border-border/50">
                 <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 p-3 sm:p-4 border-b border-border/50">
                   <h3 className="font-semibold text-base sm:text-lg flex items-center gap-2">
                     <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -214,7 +214,7 @@ export function QuizSection() {
                   <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">Top performers</p>
                 </div>
 
-                <div className="p-3 sm:p-4 flex-1 overflow-y-auto">
+                <div className="p-3 sm:p-4">
                   {leaderboard.length === 0 ? (
                     <div className="text-center py-6 sm:py-8">
                       <Users className="h-8 w-8 sm:h-12 sm:w-12 mx-auto text-muted-foreground/50 mb-2 sm:mb-3" />
