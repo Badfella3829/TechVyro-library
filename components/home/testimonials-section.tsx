@@ -1,10 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Star, Quote, GraduationCap, CheckCircle2 } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Star, Quote, GraduationCap, CheckCircle2, Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import type { Testimonial } from "@/lib/types"
 
 const defaultTestimonials: Testimonial[] = [
@@ -78,80 +76,55 @@ const defaultTestimonials: Testimonial[] = [
 
 function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
   const initials = testimonial.name.split(" ").map(n => n[0]).join("").toUpperCase()
-  
+
   return (
-    <Card className="relative w-[300px] sm:w-[340px] shrink-0 border-border/50 bg-card overflow-hidden hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 transition-all duration-300 group mx-3">
-      {/* Quote decoration */}
-      <div className="absolute top-4 right-4">
-        <Quote className="h-8 w-8 text-primary/10 group-hover:text-primary/20 transition-colors" />
+    <div className="relative w-[290px] sm:w-[330px] shrink-0 mx-2.5 bg-card border border-border/50 rounded-2xl p-5 hover:border-primary/25 hover:shadow-xl hover:shadow-primary/6 hover:-translate-y-1 transition-all duration-300 group overflow-hidden">
+      {/* Subtle top gradient */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+      {/* Quote icon */}
+      <Quote className="absolute top-4 right-4 h-8 w-8 text-primary/8 group-hover:text-primary/15 transition-colors duration-300" />
+
+      {/* Stars */}
+      <div className="flex items-center gap-0.5 mb-3">
+        {[...Array(5)].map((_, i) => (
+          <Star key={i} className={`h-3.5 w-3.5 ${i < testimonial.rating ? "text-amber-400 fill-amber-400" : "text-muted-foreground/20"}`} />
+        ))}
       </div>
-      
-      <CardContent className="p-5">
-        {/* Rating */}
-        <div className="flex items-center gap-0.5 mb-3">
-          {[...Array(5)].map((_, i) => (
-            <Star 
-              key={i} 
-              className={`h-4 w-4 ${
-                i < testimonial.rating 
-                  ? "text-amber-500 fill-amber-500" 
-                  : "text-muted-foreground/30"
-              }`} 
-            />
-          ))}
-        </div>
-        
-        {/* Testimonial Text */}
-        <p className="text-sm text-foreground leading-relaxed mb-5 line-clamp-3">
-          {`"${testimonial.comment}"`}
-        </p>
-        
-        {/* Author Info */}
-        <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-          {/* Avatar with real photo */}
-          <Avatar className="h-11 w-11 border-2 border-primary/20">
-            <AvatarImage 
-              src={testimonial.avatar} 
-              alt={testimonial.name}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-bold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          
-          {/* Name & Role */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="font-semibold text-foreground text-sm">{testimonial.name}</p>
-              {testimonial.verified && (
-                <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-xs text-muted-foreground truncate">
-                {testimonial.course}
-              </p>
-              {testimonial.verified && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-0 shrink-0">
-                  Verified
-                </Badge>
-              )}
-            </div>
+
+      {/* Comment */}
+      <p className="text-sm text-foreground/85 leading-relaxed mb-4 line-clamp-3">
+        &ldquo;{testimonial.comment}&rdquo;
+      </p>
+
+      {/* Divider */}
+      <div className="h-px bg-border/40 mb-4" />
+
+      {/* Author */}
+      <div className="flex items-center gap-3">
+        <Avatar className="h-10 w-10 border border-primary/15">
+          <AvatarImage src={testimonial.avatar} alt={testimonial.name} onError={(e) => { e.currentTarget.style.display = "none" }} />
+          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-bold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="font-semibold text-sm text-foreground truncate">{testimonial.name}</p>
+            {testimonial.verified && <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <GraduationCap className="h-3 w-3 text-muted-foreground shrink-0" />
+            <p className="text-xs text-muted-foreground truncate">{testimonial.course}</p>
+            {testimonial.verified && (
+              <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                Verified
+              </span>
+            )}
           </div>
         </div>
-        
-        {/* Course Badge */}
-        <div className="mt-3">
-          <Badge variant="outline" className="text-[10px] font-medium">
-            <GraduationCap className="h-3 w-3 mr-1" />
-            {testimonial.course}
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -170,74 +143,65 @@ export function TestimonialsSection() {
       .catch(() => {})
   }, [])
 
-  // Filter enabled testimonials and split into two rows
-  const enabledTestimonials = testimonials.filter(t => t.enabled)
-  
-  if (enabledTestimonials.length === 0) return null
+  const enabled = testimonials.filter(t => t.enabled)
+  if (enabled.length === 0) return null
 
-  // Double the testimonials for seamless loop
-  const row1 = [...enabledTestimonials, ...enabledTestimonials]
-  const row2 = [...enabledTestimonials.reverse(), ...enabledTestimonials]
+  const row1 = [...enabled, ...enabled, ...enabled]
+  const row2 = [...enabled].reverse()
+  const row2x = [...row2, ...row2, ...row2]
 
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-muted/50 via-muted/30 to-background overflow-hidden">
-      <div className="container mx-auto px-4">
-        {/* Section Header */}
+    <section className="py-16 sm:py-20 lg:py-24 overflow-hidden bg-muted/20 relative">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,rgba(120,80,200,0.04),transparent)]" />
+
+      {/* Header */}
+      <div className="container mx-auto px-4 relative">
         <div className="text-center mb-10 sm:mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <Star className="h-4 w-4 fill-current" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold mb-4">
+            <Star className="h-3 w-3 fill-current" />
             Student Reviews
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3">
-            What Students Say
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-foreground mb-3 tracking-tight">
+            What <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Students</span> Say
           </h2>
-          <p className="text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
-            Join thousands of successful students who use TechVyro for exam preparation
+          <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto">
+            Join thousands of students who trust TechVyro for quality study materials
           </p>
         </div>
       </div>
 
-      {/* Marquee Container - Full Width */}
+      {/* Marquee rows */}
       <div className="relative">
-        {/* Gradient Overlays for fade effect */}
-        <div className="absolute left-0 top-0 bottom-0 w-16 sm:w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
-        
-        {/* First Row - Moving Left */}
-        <div className="flex animate-marquee hover:[animation-play-state:paused]">
-          {row1.map((testimonial, index) => (
-            <TestimonialCard key={`row1-${testimonial.id}-${index}`} testimonial={testimonial} />
-          ))}
+        <div className="absolute left-0 top-0 bottom-0 w-16 sm:w-28 bg-gradient-to-r from-background/90 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-28 bg-gradient-to-l from-background/90 to-transparent z-10 pointer-events-none" />
+
+        <div className="flex hover:[animation-play-state:paused]" style={{ animation: "marqueeLeft 35s linear infinite" }}>
+          {row1.map((t, i) => <TestimonialCard key={`r1-${t.id}-${i}`} testimonial={t} />)}
         </div>
-        
-        {/* Second Row - Moving Right (reverse) */}
-        <div className="flex animate-marquee-reverse hover:[animation-play-state:paused] mt-6">
-          {row2.map((testimonial, index) => (
-            <TestimonialCard key={`row2-${testimonial.id}-${index}`} testimonial={testimonial} />
-          ))}
+        <div className="flex mt-4 hover:[animation-play-state:paused]" style={{ animation: "marqueeRight 40s linear infinite" }}>
+          {row2x.map((t, i) => <TestimonialCard key={`r2-${t.id}-${i}`} testimonial={t} />)}
         </div>
       </div>
-      
-      {/* Bottom Trust Text */}
-      <div className="container mx-auto px-4">
-        <div className="text-center mt-12 sm:mt-14">
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                ))}
-              </div>
-              <span className="font-medium text-foreground">4.9/5</span>
-              <span>Rating</span>
+
+      {/* Trust strip */}
+      <div className="container mx-auto px-4 relative">
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="flex">
+              {[...Array(5)].map((_, i) => <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />)}
             </div>
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <p>
-              Trusted by <span className="font-semibold text-primary">10,000+</span> students across India
-            </p>
+            <span className="font-bold text-foreground">4.9/5</span>
+            <span>Average Rating</span>
           </div>
+          <div className="h-4 w-px bg-border hidden sm:block" />
+          <p>Trusted by <span className="font-semibold text-primary">10,000+</span> students across India</p>
         </div>
       </div>
+
+      <style>{`
+        @keyframes marqueeLeft  { from{transform:translateX(0)} to{transform:translateX(-33.333%)} }
+        @keyframes marqueeRight { from{transform:translateX(-33.333%)} to{transform:translateX(0)} }
+      `}</style>
     </section>
   )
 }
