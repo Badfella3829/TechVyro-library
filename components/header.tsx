@@ -393,12 +393,18 @@ export function Header() {
 
           <ThemeToggle />
 
-          <Button variant="outline" size="sm" asChild className="px-2.5 sm:px-3.5 gap-1.5 sm:gap-2 border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300">
-            <Link href="/admin">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </Link>
-          </Button>
+          <div className="relative">
+            <Button variant="outline" size="sm" asChild className="px-2.5 sm:px-3.5 gap-1.5 sm:gap-2 border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300">
+              <Link href="/admin">
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            </Button>
+            <span className="absolute -top-1 -right-1 flex h-3 w-3 pointer-events-none">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500 border border-background" />
+            </span>
+          </div>
         </nav>
       </div>
 
