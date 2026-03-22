@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin"
+import { sendTelegramMessage } from "@/lib/telegram"
 
 export async function POST(req: Request) {
   try {
@@ -7,40 +8,41 @@ export async function POST(req: Request) {
     if (!sessionId || !message?.trim()) {
       return NextResponse.json({ error: "sessionId and message required" }, { status: 400 })
     }
-
     if (!isAdminConfigured()) {
       return NextResponse.json({ error: "Not configured" }, { status: 500 })
     }
 
-    const token = process.env.TELEGRAM_BOT_TOKEN
-    if (!token) return NextResponse.json({ error: "No bot token" }, { status: 500 })
-
     const supabase = createAdminClient()
 
-    // Get telegram chat ID from settings
-    const { data: settings } = await supabase
-      .from("site_settings")
-      .select("value")
-      .eq("key", "general_settings")
-      .single()
+    // Get message count for context
+    const { count: msgCount } = await supabase
+      .from("admin_chat_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
 
-    const chatId: string | null = (settings?.value as Record<string, string>)?.telegramChatId || null
-    if (!chatId) return NextResponse.json({ error: "Telegram not configured" }, { status: 500 })
-
-    // Send to Telegram and get message_id back
-    const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `💬 <b>[#${sessionId}] ${studentName || "Student"}:</b>\n${message.trim()}`,
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-      }),
+    const msgNum = (msgCount ?? 0) + 1
+    const name = studentName || "Student"
+    const timeStr = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit", minute: "2-digit", hour12: true,
     })
 
-    const tgData = await tgRes.json()
-    const telegramMessageId: number | null = tgData?.result?.message_id || null
+    // Rich message format with inline Quick Reply button
+    const text =
+      `📨 <b>${name}</b>  <code>#${sessionId}</code>\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `${message.trim()}\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `🕐 ${timeStr}  •  💬 Msg #${msgNum}`
+
+    const telegramMsgId = await sendTelegramMessage(text, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "✏️ Quick Reply", callback_data: `reply:${sessionId}:${name}` },
+          { text: "📋 Sessions", callback_data: "sessions" },
+        ]],
+      },
+    })
 
     // Save to DB
     const { data, error } = await supabase
@@ -49,14 +51,13 @@ export async function POST(req: Request) {
         session_id: sessionId,
         sender: "student",
         message: message.trim(),
-        telegram_message_id: telegramMessageId,
+        telegram_message_id: telegramMsgId,
       })
       .select("id, created_at")
       .single()
 
     if (error) throw error
 
-    // Update session last_message_at
     await supabase
       .from("admin_chat_sessions")
       .update({ last_message_at: new Date().toISOString() })

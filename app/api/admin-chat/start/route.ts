@@ -8,7 +8,6 @@ export async function POST(req: Request) {
     if (!studentName?.trim()) {
       return NextResponse.json({ error: "Name required" }, { status: 400 })
     }
-
     if (!isAdminConfigured()) {
       return NextResponse.json({ error: "Not configured" }, { status: 500 })
     }
@@ -27,9 +26,31 @@ export async function POST(req: Request) {
       hour: "2-digit", minute: "2-digit", hour12: true,
     })
 
-    await sendTelegramMessage(
-      `🟢 <b>New Live Chat Started!</b>\n\n👤 <b>Student:</b> ${studentName.trim()}\n🔑 <b>Session:</b> #${sessionId}\n🕐 <b>Time:</b> ${now}\n\n<i>Reply to any message from this student to respond. Use Telegram's Reply feature for best results.</i>`
-    )
+    // Count active sessions
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    const { count: activeSessions } = await supabase
+      .from("admin_chat_sessions")
+      .select("id", { count: "exact", head: true })
+      .gte("last_message_at", cutoff)
+
+    const text =
+      `🟢 <b>Naya Chat Session!</b>\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `👤 <b>Student:</b> ${studentName.trim()}\n` +
+      `🔑 <b>Session:</b> <code>#${sessionId}</code>\n` +
+      `🕐 <b>Time:</b> ${now}\n` +
+      `👥 <b>Active chats:</b> ${activeSessions ?? 1}\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `<i>Student ke message pe "✏️ Quick Reply" dabao ya Telegram Reply feature use karo.</i>`
+
+    await sendTelegramMessage(text, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "📋 Active Sessions", callback_data: "sessions" },
+          { text: "❓ Help", callback_data: "help" },
+        ]],
+      },
+    })
 
     return NextResponse.json({ sessionId })
   } catch (err) {

@@ -10,19 +10,31 @@ export async function POST(req: Request) {
 
     const supabase = createAdminClient()
 
-    // Get message count for this session
     const { count } = await supabase
       .from("admin_chat_messages")
       .select("id", { count: "exact", head: true })
       .eq("session_id", sessionId)
 
     const msgCount = count ?? 0
-    const label = reason === "timeout" ? "⏱️ Session Timeout" : "🔴 User Left Chat"
     const name = studentName || "Student"
 
-    await sendTelegramMessage(
-      `${label}\n\n👤 <b>${name}</b> (#${sessionId})\n💬 <b>Total messages:</b> ${msgCount}\n\n<i>Yeh session ab close ho gaya hai.</i>`
-    )
+    let icon = "🔴"
+    let reasonText = "User ne chat chhod diya"
+    if (reason === "tab_closed") { icon = "🚪"; reasonText = "Tab/browser band kar diya" }
+    else if (reason === "ended_by_user") { icon = "✅"; reasonText = "Student ne chat end kiya" }
+    else if (reason === "timeout") { icon = "⏱️"; reasonText = "Session timeout" }
+
+    const text =
+      `${icon} <b>Chat Ended</b>\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `👤 <b>Student:</b> ${name}\n` +
+      `🔑 <b>Session:</b> <code>#${sessionId}</code>\n` +
+      `💬 <b>Messages:</b> ${msgCount}\n` +
+      `📌 <b>Reason:</b> ${reasonText}\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `<i>Yeh session ab close ho gaya hai.</i>`
+
+    await sendTelegramMessage(text)
 
     return NextResponse.json({ ok: true })
   } catch (err) {
