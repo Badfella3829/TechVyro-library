@@ -3,6 +3,16 @@
 import { useEffect, useState, useRef } from "react"
 import { FileText, FolderOpen, Download, Eye, Star, TrendingUp, Target, BookOpen, Zap, ArrowUpRight } from "lucide-react"
 
+interface LiveStats {
+  totalPdfs: number
+  totalCategories: number
+  totalDownloads: number
+  totalViews: number
+  avgRating: number
+  thisWeekDownloads: number
+  thisWeekUploads: number
+}
+
 interface StatsSectionProps {
   stats: {
     totalPdfs: number
@@ -16,11 +26,9 @@ interface StatsSectionProps {
 function AnimatedCounter({
   value,
   duration = 2000,
-  suffix = ""
 }: {
   value: number
   duration?: number
-  suffix?: string
 }) {
   const [count, setCount] = useState(0)
   const countRef = useRef<HTMLSpanElement>(null)
@@ -47,16 +55,16 @@ function AnimatedCounter({
       if (!startTime) startTime = timestamp
       const progress = Math.min((timestamp - startTime) / duration, 1)
       const easeOut = 1 - Math.pow(1 - progress, 3)
-      setCount(Math.floor((value) * easeOut))
+      setCount(Math.floor(value * easeOut))
       if (progress < 1) requestAnimationFrame(animate)
     }
     requestAnimationFrame(animate)
   }, [value, duration, isVisible])
 
-  return <span ref={countRef}>{count.toLocaleString()}{suffix}</span>
+  return <span ref={countRef}>{count.toLocaleString()}</span>
 }
 
-const statsConfig = [
+const STAT_BASE = [
   {
     key: "totalPdfs",
     label: "Total PDFs",
@@ -67,7 +75,6 @@ const statsConfig = [
     ring: "ring-blue-500/20",
     bg: "bg-blue-500/10",
     iconColor: "text-blue-500",
-    trend: "+12% this month",
   },
   {
     key: "totalCategories",
@@ -79,7 +86,6 @@ const statsConfig = [
     ring: "ring-violet-500/20",
     bg: "bg-violet-500/10",
     iconColor: "text-violet-500",
-    trend: "Growing daily",
   },
   {
     key: "totalDownloads",
@@ -91,7 +97,6 @@ const statsConfig = [
     ring: "ring-emerald-500/20",
     bg: "bg-emerald-500/10",
     iconColor: "text-emerald-500",
-    trend: "+24% this week",
   },
   {
     key: "totalViews",
@@ -103,7 +108,6 @@ const statsConfig = [
     ring: "ring-orange-500/20",
     bg: "bg-orange-500/10",
     iconColor: "text-orange-500",
-    trend: "All time high",
   },
 ]
 
@@ -142,7 +146,48 @@ const emotionalFeatures = [
   },
 ]
 
-export function StatsSection({ stats }: StatsSectionProps) {
+function buildTrend(key: string, live: LiveStats | null): string {
+  if (!live) return "Loading…"
+  switch (key) {
+    case "totalPdfs":
+      return live.thisWeekUploads > 0
+        ? `+${live.thisWeekUploads} added this week`
+        : "Growing collection"
+    case "totalCategories":
+      return `${live.totalCategories} subject${live.totalCategories !== 1 ? "s" : ""} available`
+    case "totalDownloads":
+      return live.thisWeekDownloads > 0
+        ? `+${live.thisWeekDownloads.toLocaleString()} this week`
+        : "All time total"
+    case "totalViews":
+      return live.totalViews > 1000
+        ? `${(live.totalViews / 1000).toFixed(1)}K+ all time`
+        : `${live.totalViews} all time`
+    default:
+      return ""
+  }
+}
+
+export function StatsSection({ stats: initialStats }: StatsSectionProps) {
+  const [live, setLive] = useState<LiveStats | null>(null)
+
+  const stats: StatsSectionProps["stats"] = live
+    ? {
+        totalPdfs: live.totalPdfs,
+        totalCategories: live.totalCategories,
+        totalDownloads: live.totalDownloads,
+        totalViews: live.totalViews,
+        avgRating: live.avgRating,
+      }
+    : initialStats
+
+  useEffect(() => {
+    fetch("/api/stats/summary")
+      .then(r => r.json())
+      .then(data => { if (!data.error) setLive(data) })
+      .catch(() => {})
+  }, [])
+
   return (
     <section className="relative py-16 sm:py-20 lg:py-28 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-muted/50 via-muted/20 to-background" />
@@ -153,7 +198,7 @@ export function StatsSection({ stats }: StatsSectionProps) {
         <div className="text-center mb-12 sm:mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-4">
             <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            Our Numbers
+            {live ? "Live Data" : "Our Numbers"}
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground mb-4 tracking-tight">
             Trusted by <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Students</span>
@@ -165,16 +210,16 @@ export function StatsSection({ stats }: StatsSectionProps) {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-10 lg:mb-12">
-          {statsConfig.map((stat) => {
+          {STAT_BASE.map((stat) => {
             const Icon = stat.icon
             const value = stats[stat.key as keyof typeof stats]
+            const trend = buildTrend(stat.key, live)
 
             return (
               <div
                 key={stat.key}
                 className={`group relative bg-card rounded-2xl p-4 sm:p-5 lg:p-6 border border-border/50 hover:border-border hover:shadow-xl ${stat.glow} transition-all duration-300 hover:-translate-y-1.5 overflow-hidden`}
               >
-                {/* Gradient accent top bar */}
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${stat.gradient} opacity-60 group-hover:opacity-100 transition-opacity`} />
                 <div className={`absolute inset-0 bg-gradient-to-br ${stat.bg} opacity-0 group-hover:opacity-50 transition-opacity duration-300 rounded-2xl`} />
 
@@ -187,13 +232,15 @@ export function StatsSection({ stats }: StatsSectionProps) {
                   </div>
 
                   <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-foreground mb-0.5 sm:mb-1 tracking-tight">
-                    <AnimatedCounter value={typeof value === 'number' ? Math.round(value) : 0} />
+                    <AnimatedCounter value={typeof value === "number" ? Math.round(value) : 0} />
                   </p>
                   <p className="text-xs sm:text-sm font-semibold text-foreground/80 mb-0.5 sm:mb-1">{stat.label}</p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">{stat.sublabel}</p>
 
                   <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border/30">
-                    <span className="text-[10px] font-medium text-emerald-500">{stat.trend}</span>
+                    <span className={`text-[10px] font-medium ${live ? "text-emerald-500" : "text-muted-foreground"}`}>
+                      {trend}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -201,9 +248,8 @@ export function StatsSection({ stats }: StatsSectionProps) {
           })}
         </div>
 
-        {/* Rating + Why Us — Side by side on large screens */}
+        {/* Rating + Why Us */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Rating Card */}
           {stats.avgRating > 0 && (
             <div className="lg:col-span-2">
               <div className="h-full bg-gradient-to-br from-amber-500/10 via-card to-orange-500/8 rounded-2xl p-6 sm:p-8 border border-amber-500/25 hover:border-amber-500/40 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 flex flex-col items-center text-center justify-center gap-4">
@@ -224,7 +270,6 @@ export function StatsSection({ stats }: StatsSectionProps) {
             </div>
           )}
 
-          {/* Why Students Choose Us */}
           <div className={stats.avgRating > 0 ? "lg:col-span-3" : "lg:col-span-5"}>
             <div className="mb-4 flex items-center gap-3">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />

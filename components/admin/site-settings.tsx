@@ -28,6 +28,7 @@ const sections: SettingSection[] = [
   { id: "general", title: "General", description: "Basic site configuration", icon: Settings, color: "primary" },
   { id: "social", title: "Social Links", description: "Social media & channel URLs", icon: Globe, color: "blue" },
   { id: "hero", title: "Hero Content", description: "Homepage hero section text", icon: Layout, color: "violet" },
+  { id: "homepage", title: "Homepage Text", description: "Library & CTA section content", icon: Layout, color: "green" },
   { id: "watermark", title: "Watermark", description: "PDF watermark settings", icon: FileText, color: "blue" },
   { id: "security", title: "Security", description: "Access and protection", icon: Shield, color: "green" },
   { id: "notifications", title: "Notifications", description: "Alert preferences", icon: Bell, color: "amber" },
@@ -85,6 +86,17 @@ export function SiteSettings() {
     whatsappBtnText: "Join Updates",
   })
 
+  const [homepageSettings, setHomepageSettings] = useState({
+    libraryBadge: "Full Library",
+    libraryTitle: "Explore All PDFs",
+    librarySubtitle: "Filter by category or search for specific materials",
+    ctaBadge: "Start Today — It's Free",
+    ctaTitle: "Ready to Start Learning?",
+    ctaDescription: "Join thousands of students who trust TechVyro for quality study materials. Everything you need, completely free.",
+    ctaPrimaryBtn: "Browse All PDFs",
+    ctaSecondaryBtn: "Get Updates on WhatsApp",
+  })
+
   function getAdminToken() {
     if (typeof window !== "undefined") return sessionStorage.getItem("admin_token") || ""
     return ""
@@ -106,12 +118,19 @@ export function SiteSettings() {
         if (data.value) setHeroSettings(s => ({ ...s, ...data.value }))
       })
       .catch(() => {})
+
+    fetch("/api/site-settings?key=homepage_settings")
+      .then(r => r.json())
+      .then(data => {
+        if (data.value) setHomepageSettings(s => ({ ...s, ...data.value }))
+      })
+      .catch(() => {})
   }, [])
 
   async function handleSave() {
     setSaving(true)
     try {
-      const [res1, res2] = await Promise.all([
+      const [res1, res2, res3] = await Promise.all([
         fetch("/api/site-settings", {
           method: "PUT",
           headers: adminHeaders(),
@@ -122,12 +141,17 @@ export function SiteSettings() {
           headers: adminHeaders(),
           body: JSON.stringify({ hero_settings: heroSettings }),
         }),
+        fetch("/api/site-settings", {
+          method: "PUT",
+          headers: adminHeaders(),
+          body: JSON.stringify({ homepage_settings: homepageSettings }),
+        }),
       ])
 
-      const [data1, data2] = await Promise.all([res1.json(), res2.json()])
+      const [data1, data2, data3] = await Promise.all([res1.json(), res2.json(), res3.json()])
 
-      if (!res1.ok || !res2.ok) {
-        const errMsg = data1.error || data2.error || "Save failed"
+      if (!res1.ok || !res2.ok || !res3.ok) {
+        const errMsg = data1.error || data2.error || data3.error || "Save failed"
         if (errMsg.includes("does not exist") || errMsg.includes("42P01")) {
           toast.error("Database table missing. Run the SQL setup script in your Supabase dashboard — see the Setup tab.", { duration: 6000 })
         } else {
@@ -530,6 +554,116 @@ export function SiteSettings() {
                   onChange={(e) => setHeroSettings(s => ({ ...s, whatsappBtnText: e.target.value }))}
                   placeholder="Join Updates"
                 />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Homepage Text Settings */}
+      {activeSection === "homepage" && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layout className="h-5 w-5 text-emerald-500" />
+              Homepage Text
+            </CardTitle>
+            <CardDescription>
+              Control the Library section and bottom CTA section text on the homepage
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Library Section */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <span className="h-5 w-5 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-500 text-xs font-bold">L</span>
+                Library Section
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="libraryBadge">Badge Text</Label>
+                  <Input
+                    id="libraryBadge"
+                    value={homepageSettings.libraryBadge}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, libraryBadge: e.target.value }))}
+                    placeholder="Full Library"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="libraryTitle">Section Title</Label>
+                  <Input
+                    id="libraryTitle"
+                    value={homepageSettings.libraryTitle}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, libraryTitle: e.target.value }))}
+                    placeholder="Explore All PDFs"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="librarySubtitle">Section Subtitle</Label>
+                  <Input
+                    id="librarySubtitle"
+                    value={homepageSettings.librarySubtitle}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, librarySubtitle: e.target.value }))}
+                    placeholder="Filter by category or search for specific materials"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* CTA Section */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <span className="h-5 w-5 rounded-md bg-violet-500/10 flex items-center justify-center text-violet-500 text-xs font-bold">C</span>
+                CTA Section (Bottom of Homepage)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ctaBadge">Badge Text</Label>
+                  <Input
+                    id="ctaBadge"
+                    value={homepageSettings.ctaBadge}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, ctaBadge: e.target.value }))}
+                    placeholder="Start Today — It's Free"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ctaTitle">Heading</Label>
+                  <Input
+                    id="ctaTitle"
+                    value={homepageSettings.ctaTitle}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, ctaTitle: e.target.value }))}
+                    placeholder="Ready to Start Learning?"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="ctaDescription">Description</Label>
+                  <Input
+                    id="ctaDescription"
+                    value={homepageSettings.ctaDescription}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, ctaDescription: e.target.value }))}
+                    placeholder="Join thousands of students who trust TechVyro..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ctaPrimaryBtn">Primary Button Text</Label>
+                  <Input
+                    id="ctaPrimaryBtn"
+                    value={homepageSettings.ctaPrimaryBtn}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, ctaPrimaryBtn: e.target.value }))}
+                    placeholder="Browse All PDFs"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ctaSecondaryBtn">WhatsApp Button Text</Label>
+                  <Input
+                    id="ctaSecondaryBtn"
+                    value={homepageSettings.ctaSecondaryBtn}
+                    onChange={(e) => setHomepageSettings(s => ({ ...s, ctaSecondaryBtn: e.target.value }))}
+                    placeholder="Get Updates on WhatsApp"
+                  />
+                </div>
               </div>
             </div>
           </CardContent>
