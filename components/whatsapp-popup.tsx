@@ -28,7 +28,11 @@ export function WhatsAppPopup() {
   useEffect(() => {
     if (!mounted || !popupEnabled) return;
 
+    const alreadyShown = sessionStorage.getItem('wa_popup_shown');
+    if (alreadyShown) return;
+
     const timer = setTimeout(() => {
+      sessionStorage.setItem('wa_popup_shown', '1');
       setIsOpen(true);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
