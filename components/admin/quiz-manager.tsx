@@ -147,7 +147,7 @@ const defaultQuiz: Omit<Quiz, "id" | "createdAt"> = {
   difficulty: "medium"
 }
 
-const SECTIONS = ["General", "Competitive Exams", "School", "College", "Practice"]
+const SECTIONS = ["College", "Competitive Exams", "General", "Practice", "School"]
 const DIFFICULTIES = [
   { value: "easy", label: "Easy", color: "bg-green-500" },
   { value: "medium", label: "Medium", color: "bg-amber-500" },

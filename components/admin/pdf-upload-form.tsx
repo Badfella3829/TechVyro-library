@@ -440,7 +440,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((cat) => (
+                        {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
                             <span className="flex items-center gap-2">
                               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: cat.color }} />

@@ -41,7 +41,22 @@ export function StructureSelector({ value, onChange, placeholder = "Select locat
     if (!open) return
     fetch("/api/folders")
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data.folders)) setFolders(data.folders) })
+      .then(data => {
+        if (Array.isArray(data.folders)) {
+          const sorted = [...data.folders]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(folder => ({
+              ...folder,
+              categories: [...folder.categories]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(category => ({
+                  ...category,
+                  sections: [...category.sections].sort((a, b) => a.name.localeCompare(b.name))
+                }))
+            }))
+          setFolders(sorted)
+        }
+      })
       .catch(() => {})
   }, [open])
 
