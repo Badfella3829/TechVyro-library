@@ -84,7 +84,7 @@ interface LeaderboardEntry {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const CATEGORIES = ["Mathematics","Physics","Chemistry","Biology","English","General","NDA","SSC","History","Computer","Economics","Hindi","Sanskrit","Science"]
+const BASE_CATEGORIES = ["Mathematics","Physics","Chemistry","Biology","English","General","NDA","SSC","History","Computer","Economics","Hindi","Sanskrit","Science"]
 const SECTIONS = ["College","Competitive Exams","General","Practice","School"]
 const DIFFICULTIES = [
   { value: "easy", label: "Easy", color: "bg-green-500" },
@@ -149,6 +149,8 @@ const defaultQuiz: Omit<Quiz, "id"|"createdAt"> = {
 export function QuizManager() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [extraCategories, setExtraCategories] = useState<string[]>([])
+  const allCategories = [...BASE_CATEGORIES, ...extraCategories]
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
   const [editingQuestion, setEditingQuestion] = useState<{ quizId: string; question: Question } | null>(null)
   const [showQuizDialog, setShowQuizDialog] = useState(false)
@@ -565,6 +567,47 @@ export function QuizManager() {
 
   // ── HTML Parser ────────────────────────────────────────────────────────────
 
+  /** Extract category from text using keyword maps. Returns null if no match. */
+  const detectCategoryFromText = (text: string): string | null => {
+    const t = text.toLowerCase()
+    if (t.match(/\bmath(s|ematics)?\b|\balgebra\b|\bgeometry\b|\btrigono\b|\bcalculus\b|\barithmetic\b|\bquantitative\b/)) return "Mathematics"
+    if (t.match(/\bphysics\b|\bmechanics\b|\boptics\b|\bthermodynamics\b|\belectromagn/)) return "Physics"
+    if (t.match(/\bchemistry\b|\borganic\b|\binorganic\b|\bperiodic table\b|\bmole concept\b|\bbonding\b/)) return "Chemistry"
+    if (t.match(/\bbiology\b|\bbotany\b|\bzoology\b|\becology\b|\bgenetics\b|\bcell\b|\bvirus\b|\bbacteria\b/)) return "Biology"
+    if (t.match(/\benglish\b|\bgrammar\b|\bvocabulary\b|\bcomprehension\b|\bsynonym\b|\bantonym\b/)) return "English"
+    if (t.match(/\bhistory\b|\bancient\b|\bmedieval\b|\bmodern history\b|\bcivilization\b|\bempire\b|\bhist\b/)) return "History"
+    if (t.match(/\bcomputer\b|\bprogramming\b|\bsoftware\b|\bcoding\b|\balgorithm\b|\bdata structure\b|\bnetwork\b|\boperating system\b/)) return "Computer"
+    if (t.match(/\beconomics\b|\bmicroeconomics\b|\bmacroeconomics\b|\bgdp\b|\binflation\b|\bmarket\b|\bdemand\b|\bsupply\b/)) return "Economics"
+    if (t.match(/\bhindi\b|\bh[iī]nd[iī]\b/)) return "Hindi"
+    if (t.match(/\bsanskrit\b|\bsanskrit\b/)) return "Sanskrit"
+    if (t.match(/\bscience\b|\bgeneral science\b/)) return "Science"
+    if (t.match(/\bnda\b|\bna(tional)?\s*defence\b|\bdefence (academy|exam)\b/)) return "NDA"
+    if (t.match(/\bssc\b|\bstaff selection\b|\bcgl\b|\bchsl\b|\bmts\b/)) return "SSC"
+    if (t.match(/\bgeo(graphy)?\b|\bcontinent\b|\bcapital\b|\briver\b|\bmountain\b|\bclimate\b/)) return "Geography"
+    if (t.match(/\bpolity\b|\bconstitution\b|\bparliament\b|\bjudiciary\b|\bfundamental rights\b/)) return "Polity"
+    if (t.match(/\bcurrent affairs?\b|\bnews\b|\beveryday science\b/)) return "Current Affairs"
+    if (t.match(/\bgeneral knowledge\b|\bgk\b|\bgeneral awareness\b/)) return "GK"
+    return null
+  }
+
+  /** Detect difficulty level from text */
+  const detectDifficulty = (text: string): "easy" | "medium" | "hard" => {
+    const t = text.toLowerCase()
+    if (t.match(/\beasy\b|\bbasic\b|\bbeginner\b|\bsimple\b|\bclass [1-8]\b/)) return "easy"
+    if (t.match(/\bhard\b|\badvanced\b|\bdifficult\b|\btough\b|\bexpert\b|\bhigh level\b/)) return "hard"
+    return "medium"
+  }
+
+  /** Detect section from text */
+  const detectSection = (text: string): string => {
+    const t = text.toLowerCase()
+    if (t.match(/\bcompetitive\b|\bupsc\b|\bnda\b|\bssc\b|\bjee\b|\bneet\b|\bibps\b|\bbank\b|\bexam\b|\bentr(ance|y)\b|\bpyq\b|\bprevious year\b/)) return "Competitive Exams"
+    if (t.match(/\bcollege\b|\buniversity\b|\bbsc\b|\bba\b|\bba \b|\bbcom\b/)) return "College"
+    if (t.match(/\bschool\b|\bclass [1-9]\b|\bclass 1[0-2]\b|\bcbse\b|\bncert\b|\bicse\b/)) return "School"
+    if (t.match(/\bpractice\b|\btest\b|\bmock\b|\bquiz\b/)) return "Practice"
+    return "General"
+  }
+
   const parseQuizHtml = (html: string): Quiz | null => {
     try {
       let title = ""
@@ -626,18 +669,73 @@ export function QuizManager() {
         explanation: String(q.explanation || q.solution || ""), timeLimit: 0,
       }))
 
-      let category = "General"
-      const lc = title.toLowerCase()
-      if (lc.includes("math")||lc.includes("algebra")||lc.includes("geometry")||lc.includes("trigonometric")) category = "Mathematics"
-      else if (lc.includes("physics")) category = "Physics"
-      else if (lc.includes("chemistry")) category = "Chemistry"
-      else if (lc.includes("biology")) category = "Biology"
-      else if (lc.includes("english")) category = "English"
-      else if (lc.includes("nda")) category = "NDA"
-      else if (lc.includes("ssc")) category = "SSC"
+      // ── Auto-detect metadata ──────────────────────────────────────────────
 
-      return { id: generateId(), title, description: `${questions.length} questions | ${Math.floor(timeLimit/60)} minutes`, category, timeLimit, questions, enabled: true, createdAt: new Date().toISOString(), negativeMarking: 0, passingPercentage: 0, shuffleQuestions: false, shuffleOptions: false }
+      // 1. Try JS variable extraction first (most reliable)
+      let detectedCategory: string | null = null
+      const jsVarPatterns = [
+        /(?:var|const|let)\s+(?:subject|SUBJECT|category|CATEGORY|topic|TOPIC|sub|SUB)\s*=\s*["'`]([^"'`]+)["'`]/i,
+        /data-subject\s*=\s*["']([^"']+)["']/i,
+        /data-category\s*=\s*["']([^"']+)["']/i,
+        /<meta[^>]+name=["'](?:subject|category|topic)["'][^>]+content=["']([^"']+)["']/i,
+        /<meta[^>]+content=["']([^"']+)["'][^>]+name=["'](?:subject|category|topic)["']/i,
+      ]
+      for (const p of jsVarPatterns) {
+        const m = html.match(p)
+        if (m && m[1].trim()) {
+          const raw = m[1].trim()
+          // Try to map it to a known category first, otherwise use it as-is
+          detectedCategory = detectCategoryFromText(raw) || raw
+          break
+        }
+      }
+
+      // 2. Fall back to title-based detection
+      if (!detectedCategory) {
+        detectedCategory = detectCategoryFromText(title)
+      }
+
+      // 3. Scan first 5KB of HTML body for subject keywords
+      if (!detectedCategory) {
+        const bodySnippet = html.slice(0, 5000)
+        detectedCategory = detectCategoryFromText(bodySnippet)
+      }
+
+      const category = detectedCategory || "General"
+
+      // Detect difficulty and section from title
+      const difficulty = detectDifficulty(title)
+      const section = detectSection(title)
+
+      return {
+        id: generateId(), title,
+        description: `${questions.length} questions | ${Math.floor(timeLimit/60)} minutes`,
+        category, difficulty, section,
+        timeLimit, questions, enabled: true,
+        createdAt: new Date().toISOString(),
+        negativeMarking: 0, passingPercentage: 0,
+        shuffleQuestions: false, shuffleOptions: false,
+      }
     } catch { return null }
+  }
+
+  /** Ensure a category exists — if not in allCategories, create it via API */
+  const ensureCategoryExists = async (category: string) => {
+    if (allCategories.includes(category)) return
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: category }),
+      })
+      if (res.ok || res.status === 400) {
+        // 400 = already exists in DB (race condition) — still add to local state
+        setExtraCategories(prev => prev.includes(category) ? prev : [...prev, category])
+      }
+    } catch {
+      // Add locally even if API fails
+      setExtraCategories(prev => prev.includes(category) ? prev : [...prev, category])
+    }
   }
 
   // ── Multi-file HTML handlers ───────────────────────────────────────────────
@@ -676,9 +774,22 @@ export function QuizManager() {
         const quiz = parseQuizHtml(text)
         if (quiz) {
           const conflictId = quizzes.find(q => q.title.toLowerCase().trim() === quiz.title.toLowerCase().trim())?.id || null
+          // Auto-create category if new
+          await ensureCategoryExists(quiz.category)
+          // Detect difficulty, section from full HTML too (improve accuracy)
+          const htmlDifficulty = detectDifficulty(text)
+          const htmlSection = detectSection(text)
+          const finalQuiz = {
+            ...quiz,
+            difficulty: quiz.difficulty !== "medium" ? quiz.difficulty : htmlDifficulty,
+            section: quiz.section !== "General" ? quiz.section : htmlSection,
+            visibility: entry.settings.visibility,
+            tags: entry.settings.tags,
+          }
           setUploadEntries(prev => prev.map(e => e.id === entry.id ? {
             ...e, status: "ready" as const, conflictId,
-            quiz: { ...quiz, category: e.settings.category, section: e.settings.section, difficulty: e.settings.difficulty, visibility: e.settings.visibility, tags: e.settings.tags }
+            quiz: finalQuiz,
+            settings: { ...e.settings, category: finalQuiz.category, difficulty: finalQuiz.difficulty || "medium", section: finalQuiz.section || "General" },
           } : e))
         } else {
           setUploadEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: "error" as const, error: "Could not parse quiz — format may not be supported" } : e))
@@ -698,9 +809,20 @@ export function QuizManager() {
       const quiz = parseQuizHtml(text)
       if (quiz) {
         const conflictId = quizzes.find(q => q.title.toLowerCase().trim() === quiz.title.toLowerCase().trim())?.id || null
+        await ensureCategoryExists(quiz.category)
+        const htmlDifficulty = detectDifficulty(text)
+        const htmlSection = detectSection(text)
+        const finalQuiz = {
+          ...quiz,
+          difficulty: quiz.difficulty !== "medium" ? quiz.difficulty : htmlDifficulty,
+          section: quiz.section !== "General" ? quiz.section : htmlSection,
+          visibility: entry.settings.visibility,
+          tags: entry.settings.tags,
+        }
         setUploadEntries(prev => prev.map(e => e.id === id ? {
           ...e, status: "ready" as const, conflictId,
-          quiz: { ...quiz, category: e.settings.category, section: e.settings.section, difficulty: e.settings.difficulty, visibility: e.settings.visibility, tags: e.settings.tags }
+          quiz: finalQuiz,
+          settings: { ...e.settings, category: finalQuiz.category, difficulty: finalQuiz.difficulty || "medium", section: finalQuiz.section || "General" },
         } : e))
       } else {
         setUploadEntries(prev => prev.map(e => e.id === id ? { ...e, status: "error" as const, error: "Could not parse quiz — format may not be supported" } : e))
@@ -710,12 +832,20 @@ export function QuizManager() {
     }
   }
 
-  const addPastedHtmlEntry = () => {
+  const addPastedHtmlEntry = async () => {
     if (!importHtml.trim()) return
     const quiz = parseQuizHtml(importHtml)
     if (!quiz) { toast.error("Could not parse quiz from pasted HTML"); return }
+    await ensureCategoryExists(quiz.category)
     const conflictId = quizzes.find(q => q.title.toLowerCase().trim() === quiz.title.toLowerCase().trim())?.id || null
-    const entry = { ...makeHtmlEntry(null, "Pasted HTML"), status: "ready" as const, conflictId, quiz }
+    const base = makeHtmlEntry(null, "Pasted HTML")
+    const entry = {
+      ...base,
+      status: "ready" as const,
+      conflictId,
+      quiz,
+      settings: { ...base.settings, category: quiz.category, difficulty: (quiz.difficulty || "medium") as "easy"|"medium"|"hard", section: quiz.section || "General" },
+    }
     setUploadEntries(prev => [...prev, entry])
     setImportHtml(""); setParsedPreview(null); setShowPasteHtml(false)
     toast.success(`Parsed "${quiz.title}" — ${quiz.questions.length} questions`)
@@ -837,7 +967,7 @@ export function QuizManager() {
             <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="Category" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
@@ -1042,7 +1172,7 @@ export function QuizManager() {
                       <Label className="text-xs sm:text-sm">Category</Label>
                       <Select value={editingQuiz.category} onValueChange={v => setEditingQuiz({ ...editingQuiz, category: v })}>
                         <SelectTrigger className="h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
-                        <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                        <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div>
@@ -1365,7 +1495,7 @@ export function QuizManager() {
                               <Label className="text-xs">Category</Label>
                               <Select value={globalSettings.category} onValueChange={v => setGlobalSettings(p => ({ ...p, category: v }))}>
                                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
                             <div>
@@ -1445,19 +1575,33 @@ export function QuizManager() {
                               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleHtmlExpanded(entry.id)}>
                                 <p className="font-medium text-xs truncate">{entry.fileName}</p>
                                 {entry.quiz && (
-                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                    <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{entry.quiz.title}</span>
-                                    <span className="text-[10px] text-muted-foreground">{qCount} Q</span>
-                                    {mcqCount > 0 && <span className="text-[10px] text-blue-600">{mcqCount} MCQ</span>}
-                                    {tfCount > 0 && <span className="text-[10px] text-green-600">{tfCount} T/F</span>}
-                                    {msCount > 0 && <span className="text-[10px] text-purple-600">{msCount} Multi</span>}
-                                    {entry.quiz.timeLimit > 0 && <span className="text-[10px] text-muted-foreground">{Math.floor(entry.quiz.timeLimit/60)}min</span>}
-                                    {entry.conflictId && (
-                                      <Badge variant="outline" className="text-[9px] px-1 h-4 border-amber-400 text-amber-600 gap-0.5">
-                                        <AlertCircle className="h-2.5 w-2.5" /> Conflict
-                                      </Badge>
-                                    )}
-                                  </div>
+                                  <>
+                                    <p className="text-[10px] text-foreground/80 font-medium truncate mt-0.5">{entry.quiz.title}</p>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      {/* Auto-detected tags */}
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0 rounded-full bg-primary/10 text-primary font-medium">
+                                        <Zap className="h-2 w-2" />{entry.quiz.category}
+                                      </span>
+                                      {entry.quiz.difficulty && (
+                                        <span className={`text-[9px] px-1.5 py-0 rounded-full font-medium ${entry.quiz.difficulty === "easy" ? "bg-green-100 text-green-700" : entry.quiz.difficulty === "hard" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                          {entry.quiz.difficulty}
+                                        </span>
+                                      )}
+                                      {entry.quiz.section && entry.quiz.section !== "General" && (
+                                        <span className="text-[9px] px-1.5 py-0 rounded-full bg-blue-100 text-blue-700 font-medium">{entry.quiz.section}</span>
+                                      )}
+                                      <span className="text-[10px] text-muted-foreground">{qCount} Q</span>
+                                      {mcqCount > 0 && mcqCount < qCount && <span className="text-[10px] text-muted-foreground">{mcqCount} MCQ</span>}
+                                      {tfCount > 0 && <span className="text-[10px] text-muted-foreground">{tfCount} T/F</span>}
+                                      {msCount > 0 && <span className="text-[10px] text-muted-foreground">{msCount} Multi</span>}
+                                      {entry.quiz.timeLimit > 0 && <span className="text-[10px] text-muted-foreground">{Math.floor(entry.quiz.timeLimit/60)}min</span>}
+                                      {entry.conflictId && (
+                                        <Badge variant="outline" className="text-[9px] px-1 h-4 border-amber-400 text-amber-600 gap-0.5">
+                                          <AlertCircle className="h-2.5 w-2.5" /> Conflict
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </>
                                 )}
                                 {entry.error && <p className="text-[10px] text-red-500 mt-0.5">{entry.error}</p>}
                               </div>
@@ -1500,7 +1644,7 @@ export function QuizManager() {
                                 <div className="px-2.5 pb-2 grid grid-cols-4 gap-1.5">
                                   <Select value={entry.settings.category} onValueChange={v => updateEntrySettings(entry.id,"category",v)}>
                                     <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
                                   </Select>
                                   <Select value={entry.settings.difficulty} onValueChange={v => updateEntrySettings(entry.id,"difficulty",v)}>
                                     <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
@@ -1636,7 +1780,7 @@ export function QuizManager() {
                               <Label className="text-xs">Category</Label>
                               <Select value={jsonGs.category} onValueChange={v => setJsonGs(p => ({ ...p, category: v }))}>
                                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
                             <div>
@@ -1727,7 +1871,7 @@ export function QuizManager() {
                                   <div className="grid grid-cols-4 gap-1.5">
                                     <Select value={entry.settings.category} onValueChange={v => applyJsonFileSettings(entry.id, { ...entry.settings, category: v })}>
                                       <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
-                                      <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
+                                      <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}</SelectContent>
                                     </Select>
                                     <Select value={entry.settings.difficulty} onValueChange={v => applyJsonFileSettings(entry.id, { ...entry.settings, difficulty: v as any })}>
                                       <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
@@ -1925,7 +2069,7 @@ export function QuizManager() {
                 <Label className="text-xs">Category</Label>
                 <Select value={bulkMoveTarget.category} onValueChange={v => setBulkMoveTarget(p=>({...p,category:v}))}>
                   <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
