@@ -61,8 +61,111 @@ function generateId() {
   return Math.random().toString(36).slice(2)
 }
 
-function titleFromFilename(name: string) {
-  return name.replace(/\.(pdf|html?)$/i, "").replace(/[-_]+/g, " ").trim()
+function titleFromFilename(name: string): string {
+  // 1. Strip extension
+  let s = name.replace(/\.(pdf|html?)$/i, "")
+
+  // 2. Normalize common separators (dots, underscores, dashes) → space
+  //    but NOT between digits and letters that form version/part numbers
+  s = s.replace(/[_\-]+/g, " ")
+  s = s.replace(/\.(?!\d)/g, " ")   // dots not followed by digit → space
+
+  // 3. Split camelCase / PascalCase into words
+  //    e.g. "ChemistryChapter01" → "Chemistry Chapter 01"
+  s = s.replace(/([a-z])([A-Z])/g, "$1 $2")
+  s = s.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+
+  // 4. Insert space between letters and digits (and vice versa)
+  //    e.g. "Chapter01" → "Chapter 01", "Unit5" → "Unit 5"
+  s = s.replace(/([a-zA-Z])(\d)/g, "$1 $2")
+  s = s.replace(/(\d)([a-zA-Z])/g, "$1 $2")
+
+  // 5. Expand known academic abbreviations (case-insensitive)
+  const abbrevMap: [RegExp, string][] = [
+    [/\bch\b/gi,       "Chapter"],
+    [/\bchap\b/gi,     "Chapter"],
+    [/\bchapter\b/gi,  "Chapter"],
+    [/\bpt\b/gi,       "Part"],
+    [/\bpart\b/gi,     "Part"],
+    [/\bvol\b/gi,      "Volume"],
+    [/\bvolume\b/gi,   "Volume"],
+    [/\blec\b/gi,      "Lecture"],
+    [/\blect\b/gi,     "Lecture"],
+    [/\blecture\b/gi,  "Lecture"],
+    [/\bunit\b/gi,     "Unit"],
+    [/\bsem\b/gi,      "Semester"],
+    [/\bmod\b/gi,      "Module"],
+    [/\bmodule\b/gi,   "Module"],
+    [/\btopic\b/gi,    "Topic"],
+    [/\bsec\b/gi,      "Section"],
+    [/\bsection\b/gi,  "Section"],
+    [/\bex\b/gi,       "Exercise"],
+    [/\bexercise\b/gi, "Exercise"],
+    [/\bqs\b/gi,       "Questions"],
+    [/\bq\b/gi,        "Questions"],
+    [/\bqna\b/gi,      "Q&A"],
+    [/\bans\b/gi,      "Answers"],
+    [/\bsoln\b/gi,     "Solutions"],
+    [/\bsoln s\b/gi,   "Solutions"],
+    [/\bnotes\b/gi,    "Notes"],
+    [/\bnote\b/gi,     "Notes"],
+    [/\brev\b/gi,      "Revision"],
+    [/\brevision\b/gi, "Revision"],
+    [/\bprac\b/gi,     "Practice"],
+    [/\bpractice\b/gi, "Practice"],
+    [/\bset\b/gi,      "Set"],
+    [/\btest\b/gi,     "Test"],
+    [/\bexam\b/gi,     "Exam"],
+    [/\bpaper\b/gi,    "Paper"],
+    [/\bpyq\b/gi,      "PYQ"],
+    [/\bpyqs\b/gi,     "PYQs"],
+    [/\bmcq\b/gi,      "MCQ"],
+    [/\bmcqs\b/gi,     "MCQs"],
+    [/\bneet\b/gi,     "NEET"],
+    [/\bjee\b/gi,      "JEE"],
+    [/\bcbse\b/gi,     "CBSE"],
+    [/\bicse\b/gi,     "ICSE"],
+    [/\bupsc\b/gi,     "UPSC"],
+    [/\bssc\b/gi,      "SSC"],
+    [/\bgate\b/gi,     "GATE"],
+    [/\bcat\b/gi,      "CAT"],
+    [/\bclass\b/gi,    "Class"],
+    [/\bstd\b/gi,      "Standard"],
+    [/\bgrade\b/gi,    "Grade"],
+    [/\bphysics\b/gi,  "Physics"],
+    [/\bchem\b/gi,     "Chemistry"],
+    [/\bchemistry\b/gi,"Chemistry"],
+    [/\bmath\b/gi,     "Mathematics"],
+    [/\bmaths\b/gi,    "Mathematics"],
+    [/\bbio\b/gi,      "Biology"],
+    [/\bbiology\b/gi,  "Biology"],
+    [/\beng\b/gi,      "English"],
+    [/\benglish\b/gi,  "English"],
+    [/\bhindi\b/gi,    "Hindi"],
+    [/\bsc\b/gi,       "Science"],
+    [/\bscience\b/gi,  "Science"],
+    [/\bhist\b/gi,     "History"],
+    [/\bhistory\b/gi,  "History"],
+    [/\bgeo\b/gi,      "Geography"],
+    [/\bgeography\b/gi,"Geography"],
+    [/\becono\b/gi,    "Economics"],
+    [/\beco\b/gi,      "Economics"],
+    [/\bcs\b/gi,       "Computer Science"],
+    [/\bcomp\b/gi,     "Computer"],
+    [/\bict\b/gi,      "ICT"],
+  ]
+  for (const [pattern, replacement] of abbrevMap) {
+    s = s.replace(pattern, replacement)
+  }
+
+  // 6. Collapse multiple spaces
+  s = s.replace(/\s+/g, " ").trim()
+
+  // 7. Title-case: capitalise first letter of each word,
+  //    but preserve all-caps words (like NEET, JEE, MCQ, PDF, etc.)
+  s = s.replace(/\b([a-z])([a-z]*)/g, (_, first, rest) => first.toUpperCase() + rest)
+
+  return s
 }
 
 function isHtmlFile(file: File) {
