@@ -15,8 +15,6 @@ import {
 } from "@/components/ui/popover"
 import type { ContentFolder, ContentCategory, ContentSection } from "@/lib/types"
 
-const STORAGE_KEY = "techvyro-content-structure"
-
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Folder, BookOpen, Code, Calculator, FlaskConical, 
   Globe, Briefcase, Zap, Database, FileText, Layers,
@@ -40,14 +38,11 @@ export function StructureSelector({ value, onChange, placeholder = "Select locat
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        setFolders(JSON.parse(saved))
-      } catch (e) {
-        // Silent fail
-      }
-    }
+    if (!open) return
+    fetch("/api/folders")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data.folders)) setFolders(data.folders) })
+      .catch(() => {})
   }, [open])
 
   const toggleFolder = (id: string) => {

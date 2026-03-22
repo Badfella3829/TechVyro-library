@@ -134,20 +134,29 @@ export function FolderManager() {
   const [moveToFolderId, setMoveToFolderId] = useState<string>("")
   const [moveToCategoryId, setMoveToCategoryId] = useState<string>("")
 
+  function getAdminToken() {
+    if (typeof window !== "undefined") return sessionStorage.getItem("admin_token") || ""
+    return ""
+  }
+
+  function adminHeaders() {
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${getAdminToken()}` }
+  }
+
   useEffect(() => {
-    const saved = localStorage.getItem("techvyro_folders")
-    if (saved) {
-      try {
-        setFolders(JSON.parse(saved))
-      } catch {
-        setFolders([])
-      }
-    }
+    fetch("/api/folders")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data.folders)) setFolders(data.folders) })
+      .catch(() => {})
   }, [])
 
   const saveFolders = useCallback((newFolders: ContentFolder[]) => {
     setFolders(newFolders)
-    localStorage.setItem("techvyro_folders", JSON.stringify(newFolders))
+    fetch("/api/folders", {
+      method: "PUT",
+      headers: adminHeaders(),
+      body: JSON.stringify({ folders: newFolders }),
+    }).catch(() => {})
   }, [])
 
   const toggleFolder = (id: string) => {

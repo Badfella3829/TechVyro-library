@@ -36,19 +36,14 @@ export function CategoriesSection({ categories, pdfsByCategory }: CategoriesSect
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const saved = localStorage.getItem("techvyro_folders")
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        setFolders(parsed.filter((f: ContentFolder) => f.enabled))
-        // Auto-expand first folder
-        if (parsed.length > 0) {
-          setExpandedFolders(new Set([parsed[0].id]))
-        }
-      } catch (e) {
-        setFolders([])
-      }
-    }
+    fetch("/api/folders")
+      .then(r => r.json())
+      .then(data => {
+        const parsed: ContentFolder[] = data.folders ?? []
+        setFolders(parsed.filter(f => f.enabled))
+        if (parsed.length > 0) setExpandedFolders(new Set([parsed[0].id]))
+      })
+      .catch(() => {})
   }, [])
 
   const toggleFolder = (id: string) => {

@@ -158,20 +158,16 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
 export function TestimonialsSection() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>(defaultTestimonials)
 
-  // Load testimonials from localStorage (admin settings)
   useEffect(() => {
-    const stored = localStorage.getItem("techvyro_testimonials")
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored)
-        const enabledTestimonials = parsed.filter((t: Testimonial) => t.enabled)
-        if (enabledTestimonials.length > 0) {
-          setTestimonials(enabledTestimonials)
+    fetch("/api/site-settings?key=testimonials")
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data.value)) {
+          const enabled = data.value.filter((t: Testimonial) => t.enabled)
+          if (enabled.length > 0) setTestimonials(enabled)
         }
-      } catch {
-        // Use defaults on error
-      }
-    }
+      })
+      .catch(() => {})
   }, [])
 
   // Filter enabled testimonials and split into two rows

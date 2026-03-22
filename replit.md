@@ -1,0 +1,86 @@
+# TechVyro PDF Library
+
+A Next.js 16 PDF library and quiz platform with admin dashboard, hosted on Replit with Supabase backend.
+
+## Tech Stack
+- **Framework**: Next.js 16.1.6 (App Router, Turbopack)
+- **Package Manager**: pnpm
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS v4
+- **Language**: TypeScript
+
+## Run Command
+```
+pnpm run dev
+```
+Port: 5000
+
+## Architecture
+
+### Admin Authentication
+- Password stored in `ADMIN_PASSWORD` environment secret
+- Login creates a base64-encoded token stored in `sessionStorage`
+- All admin API routes verify the token via `Authorization: Bearer <token>` header
+
+### Database Tables (Supabase)
+| Table | Purpose |
+|-------|---------|
+| `pdfs` | PDF documents with metadata |
+| `categories` | PDF categories |
+| `reviews` | User reviews for PDFs |
+| `quizzes` | Quiz data (JSON) |
+| `quiz_results` | Quiz attempt results / leaderboard |
+| `site_settings` | Key-value store for app settings (JSONB) |
+
+### `site_settings` Keys
+| Key | Content |
+|-----|---------|
+| `folders` | Content folder/category/section hierarchy |
+| `featured_pdfs` | Featured PDF IDs for homepage |
+| `announcements` | Homepage announcement banners |
+| `hero_settings` | Homepage hero section config |
+| `testimonials` | Testimonial array for homepage |
+| `general_settings` | Site name, watermark, security, notification prefs |
+
+### API Routes
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/api/pdfs` | GET/POST | POST needs admin | List/create PDFs |
+| `/api/pdfs/[id]` | GET/PUT/DELETE | PUT/DELETE admin | PDF CRUD |
+| `/api/categories` | GET/POST/DELETE | POST/DELETE admin | Category CRUD |
+| `/api/reviews` | GET/POST/DELETE | DELETE admin | Review management |
+| `/api/quizzes` | GET/POST | POST admin | Quiz management |
+| `/api/quiz-results` | GET/POST/DELETE | DELETE admin | Leaderboard |
+| `/api/folders` | GET/PUT | PUT admin | Folder structure |
+| `/api/site-settings` | GET/PUT | PUT admin | App settings |
+| `/api/admin/login` | POST | — | Admin auth |
+| `/api/admin/verify` | GET | Admin | Token verify |
+| `/api/upload` | POST | Admin | PDF file upload |
+| `/api/stats` | GET | — | Dashboard stats |
+
+### Key Components
+- `app/admin/page.tsx` — Admin dashboard with tabs
+- `components/admin/folder-manager.tsx` — Manage content folder hierarchy
+- `components/admin/homepage-manager.tsx` — Featured PDFs, announcements, hero, testimonials
+- `components/admin/site-settings.tsx` — General site settings
+- `components/admin/quiz-manager.tsx` — Quiz CRUD
+- `components/home/categories-section.tsx` — Homepage folder/category display
+- `components/home/testimonials-section.tsx` — Homepage testimonials
+
+## Secrets Required
+- `SUPABASE_URL` — Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` — For server-side DB access
+- `NEXT_PUBLIC_SUPABASE_URL` — For client-side
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — For client-side
+- `ADMIN_PASSWORD` — Admin panel password
+- `OPENAI_API_KEY` — For AI features
+- `TELEGRAM_BOT_TOKEN` — For Telegram notifications
+
+## Migration Scripts
+| Script | Purpose |
+|--------|---------|
+| `scripts/001_*.sql` | Initial tables |
+| `scripts/002_*.sql` | Reviews table |
+| `scripts/003_*.sql` | Additional schema |
+| `scripts/004_create_quiz_tables.sql` | Quizzes and quiz_results |
+| `scripts/005_create_site_settings.sql` | site_settings table |

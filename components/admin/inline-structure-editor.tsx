@@ -101,28 +101,35 @@ export function InlineStructureEditor({
   
   const [formData, setFormData] = useState({ name: "", icon: "Folder", color: "#3b82f6" })
 
+  function getAdminToken() {
+    if (typeof window !== "undefined") return sessionStorage.getItem("admin_token") || ""
+    return ""
+  }
+
+  function adminHeaders() {
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${getAdminToken()}` }
+  }
+
   useEffect(() => {
-    const saved = localStorage.getItem("techvyro_folders")
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        setFolders(parsed)
-        // Auto-expand selected items
-        if (selectedFolderId) {
-          setExpandedFolders(prev => new Set([...prev, selectedFolderId]))
+    fetch("/api/folders")
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data.folders)) {
+          setFolders(data.folders)
+          if (selectedFolderId) setExpandedFolders(prev => new Set([...prev, selectedFolderId]))
+          if (selectedCategoryId) setExpandedCategories(prev => new Set([...prev, selectedCategoryId]))
         }
-        if (selectedCategoryId) {
-          setExpandedCategories(prev => new Set([...prev, selectedCategoryId]))
-        }
-      } catch {
-        setFolders([])
-      }
-    }
+      })
+      .catch(() => {})
   }, [selectedFolderId, selectedCategoryId])
 
   const saveFolders = useCallback((newFolders: ContentFolder[]) => {
     setFolders(newFolders)
-    localStorage.setItem("techvyro_folders", JSON.stringify(newFolders))
+    fetch("/api/folders", {
+      method: "PUT",
+      headers: adminHeaders(),
+      body: JSON.stringify({ folders: newFolders }),
+    }).catch(() => {})
   }, [])
 
   const toggleFolder = (id: string) => {

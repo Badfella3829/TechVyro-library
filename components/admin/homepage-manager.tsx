@@ -157,47 +157,32 @@ export function HomepageManager({ pdfs, categories }: HomepageManagerProps) {
     backgroundStyle: "gradient" as "gradient" | "solid" | "pattern",
   })
 
-  // Load settings from localStorage
+  function getAdminToken() {
+    if (typeof window !== "undefined") return sessionStorage.getItem("admin_token") || ""
+    return ""
+  }
+
+  function adminHeaders() {
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${getAdminToken()}` }
+  }
+
+  // Load settings from database
   useEffect(() => {
-    const stored = localStorage.getItem("techvyro_featured_pdfs")
-    if (stored) {
-      try {
-        setFeaturedPdfs(JSON.parse(stored))
-      } catch {
-        // Invalid data, ignore
-      }
-    }
-
-    const storedAnnouncements = localStorage.getItem("techvyro_announcements")
-    if (storedAnnouncements) {
-      try {
-        const parsed = JSON.parse(storedAnnouncements)
-        setAnnouncements(parsed.map((a: Announcement) => ({
-          ...a,
-          createdAt: new Date(a.createdAt)
-        })))
-      } catch {
-        // Invalid data, ignore
-      }
-    }
-
-    const storedHero = localStorage.getItem("techvyro_hero_settings")
-    if (storedHero) {
-      try {
-        setHeroSettings(JSON.parse(storedHero))
-      } catch {
-        // Invalid data, ignore
-      }
-    }
-
-    const storedTestimonials = localStorage.getItem("techvyro_testimonials")
-    if (storedTestimonials) {
-      try {
-        setTestimonials(JSON.parse(storedTestimonials))
-      } catch {
-        // Invalid data, use defaults
-      }
-    }
+    fetch("/api/site-settings")
+      .then(r => r.json())
+      .then(data => {
+        const s = data.settings ?? {}
+        if (s.featured_pdfs) setFeaturedPdfs(s.featured_pdfs)
+        if (s.announcements) {
+          setAnnouncements(s.announcements.map((a: Announcement) => ({
+            ...a,
+            createdAt: new Date(a.createdAt)
+          })))
+        }
+        if (s.hero_settings) setHeroSettings(s.hero_settings)
+        if (s.testimonials) setTestimonials(s.testimonials)
+      })
+      .catch(() => {})
   }, [])
 
   // Get PDF details by ID
@@ -323,12 +308,17 @@ export function HomepageManager({ pdfs, categories }: HomepageManagerProps) {
   async function handleSave() {
     setSaving(true)
     try {
-      localStorage.setItem("techvyro_featured_pdfs", JSON.stringify(featuredPdfs))
-      localStorage.setItem("techvyro_announcements", JSON.stringify(announcements))
-      localStorage.setItem("techvyro_hero_settings", JSON.stringify(heroSettings))
-      localStorage.setItem("techvyro_testimonials", JSON.stringify(testimonials))
-      
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const res = await fetch("/api/site-settings", {
+        method: "PUT",
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          featured_pdfs: featuredPdfs,
+          announcements: announcements,
+          hero_settings: heroSettings,
+          testimonials: testimonials,
+        }),
+      })
+      if (!res.ok) throw new Error("Save failed")
       toast.success("All settings saved!")
     } catch (error) {
       toast.error("Failed to save settings")

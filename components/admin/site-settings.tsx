@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   Settings, Shield, Globe, Bell, Palette, Database, 
   Save, RefreshCw, ExternalLink, Check, Copy, Eye, EyeOff,
@@ -62,12 +62,37 @@ export function SiteSettings() {
     downloadThreshold: 100,
   })
 
+  function getAdminToken() {
+    if (typeof window !== "undefined") return sessionStorage.getItem("admin_token") || ""
+    return ""
+  }
+
+  function adminHeaders() {
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${getAdminToken()}` }
+  }
+
+  useEffect(() => {
+    fetch("/api/site-settings?key=general_settings")
+      .then(r => r.json())
+      .then(data => { if (data.value) setSettings(s => ({ ...s, ...data.value })) })
+      .catch(() => {})
+  }, [])
+
   async function handleSave() {
     setSaving(true)
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    toast.success("Settings saved successfully!")
-    setSaving(false)
+    try {
+      const res = await fetch("/api/site-settings", {
+        method: "PUT",
+        headers: adminHeaders(),
+        body: JSON.stringify({ general_settings: settings }),
+      })
+      if (!res.ok) throw new Error("Save failed")
+      toast.success("Settings saved successfully!")
+    } catch {
+      toast.error("Failed to save settings")
+    } finally {
+      setSaving(false)
+    }
   }
 
   function copyToClipboard(text: string) {
@@ -326,7 +351,7 @@ export function SiteSettings() {
                   <p className="text-sm font-medium text-amber-600">Admin Password</p>
                   <p className="text-xs text-muted-foreground">
                     The admin password is set via the ADMIN_PASSWORD environment variable. 
-                    To change it, update the variable in your Vercel project settings.
+                    To change it, update the variable in your Replit project secrets.
                   </p>
                 </div>
               </div>
@@ -376,12 +401,12 @@ export function SiteSettings() {
                   <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
                 </a>
                 <a 
-                  href="https://vercel.com/docs/security" 
+                  href="https://docs.replit.com/category/deployments" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50 hover:border-primary/50 transition-colors group"
                 >
-                  <span className="text-sm">Vercel Security Best Practices</span>
+                  <span className="text-sm">Replit Deployment Docs</span>
                   <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
                 </a>
               </div>
