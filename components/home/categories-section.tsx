@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { 
   FolderOpen, ChevronRight, ChevronDown, FileText, TrendingUp,
@@ -30,21 +30,48 @@ function getIcon(iconName: string) {
   return ICONS[iconName] || Folder
 }
 
-export function CategoriesSection({ categories, pdfsByCategory }: CategoriesSectionProps) {
+const REFRESH_INTERVAL = 2 * 60 * 1000
+
+export function CategoriesSection({ categories: initialCategories, pdfsByCategory: initialPdfsByCategory }: CategoriesSectionProps) {
   const [folders, setFolders] = useState<ContentFolder[]>([])
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [categories, setCategories] = useState(initialCategories)
+  const [pdfsByCategory, setPdfsByCategory] = useState(initialPdfsByCategory)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const fetchFolders = useCallback(async () => {
+    const res = await fetch("/api/folders")
+    const data = await res.json()
+    const parsed: ContentFolder[] = data.folders ?? []
+    setFolders(prev => {
+      if (prev.length === 0 && parsed.length > 0) {
+        setExpandedFolders(new Set([parsed[0].id]))
+      }
+      return parsed.filter(f => f.enabled)
+    })
+  }, [])
+
+  const fetchContent = useCallback(async () => {
+    try {
+      const [homepageRes] = await Promise.all([
+        fetch("/api/homepage-data", { cache: "no-store" }),
+        fetchFolders(),
+      ])
+      if (!homepageRes.ok) return
+      const data = await homepageRes.json()
+      if (data.categories) setCategories(data.categories)
+      if (data.pdfsByCategory) setPdfsByCategory(data.pdfsByCategory)
+      setLastUpdated(new Date())
+    } catch {}
+  }, [fetchFolders])
 
   useEffect(() => {
-    fetch("/api/folders")
-      .then(r => r.json())
-      .then(data => {
-        const parsed: ContentFolder[] = data.folders ?? []
-        setFolders(parsed.filter(f => f.enabled))
-        if (parsed.length > 0) setExpandedFolders(new Set([parsed[0].id]))
-      })
-      .catch(() => {})
-  }, [])
+    fetchContent()
+    timerRef.current = setInterval(fetchContent, REFRESH_INTERVAL)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [fetchContent])
 
   const toggleFolder = (id: string) => {
     const newSet = new Set(expandedFolders)
@@ -75,7 +102,7 @@ export function CategoriesSection({ categories, pdfsByCategory }: CategoriesSect
         {/* Section Header */}
         <div className="text-center mb-10 sm:mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
-            <FolderOpen className="h-4 w-4" />
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
             Browse by Category
           </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3 text-balance">
@@ -84,6 +111,11 @@ export function CategoriesSection({ categories, pdfsByCategory }: CategoriesSect
           <p className="text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
             Find PDFs organized by subjects for easier navigation
           </p>
+          {lastUpdated && (
+            <p className="text-[10px] text-muted-foreground/50 mt-2">
+              Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          )}
         </div>
 
         {/* Admin Folder Structure */}
