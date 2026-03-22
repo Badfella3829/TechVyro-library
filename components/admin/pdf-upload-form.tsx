@@ -2,10 +2,10 @@
 
 import { useState, useRef, useCallback } from "react"
 import { 
-  Upload, FileText, X, CheckCircle, Loader2, AlertCircle, AlertTriangle, 
-  Zap, Files, FolderPlus, Tag, Eye, EyeOff, Calendar, Clock, Lock, 
+  Upload, FileText, X, CheckCircle, Loader2, AlertCircle, 
+  Zap, Files, FolderPlus, Tag, Eye, Calendar, Clock, Lock, 
   Globe, Link2, FileCheck, Sparkles, ChevronDown, ChevronUp, Settings2,
-  ImageIcon, Hash, Download, Shield
+  Hash, Download, Shield, RefreshCw, Type, Replace, ArrowRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,7 @@ import type { Category } from "@/lib/types"
 import { InlineStructureEditor } from "./inline-structure-editor"
 import { StructureSelector } from "./structure-selector"
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB in bytes
+const MAX_FILE_SIZE = 50 * 1024 * 1024
 const MAX_PARALLEL_UPLOADS = 8
 
 type VisibilityType = "public" | "unlisted" | "private"
@@ -46,6 +46,8 @@ interface FileEntry {
   progress: number
   error?: string
   showAdvanced: boolean
+  isDuplicate?: boolean
+  replaceExisting?: boolean
 }
 
 interface PDFUploadFormProps {
@@ -86,37 +88,36 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [showGlobalSettings, setShowGlobalSettings] = useState(false)
+  const [showBulkTitleEditor, setShowBulkTitleEditor] = useState(false)
+
+  // Bulk title editor state
+  const [bulkPrefix, setBulkPrefix] = useState("")
+  const [bulkSuffix, setBulkSuffix] = useState("")
+  const [bulkFind, setBulkFind] = useState("")
+  const [bulkReplace, setBulkReplace] = useState("")
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function addFiles(files: FileList | File[]) {
     const allFiles = Array.from(files)
     const pdfs = allFiles.filter((f) => f.type === "application/pdf")
-    
-    if (pdfs.length === 0) {
-      toast.error("Only PDF files are allowed")
-      return
-    }
+    if (pdfs.length === 0) { toast.error("Only PDF files are allowed"); return }
 
-    // Check for oversized files
     const oversizedFiles = pdfs.filter(f => f.size > MAX_FILE_SIZE)
     const validFiles = pdfs.filter(f => f.size <= MAX_FILE_SIZE)
 
     if (oversizedFiles.length > 0) {
-      const names = oversizedFiles.map(f => f.name).join(", ")
-      toast.error(`Files exceeding 50MB limit: ${names}`, {
+      toast.error(`Files exceeding 50MB limit: ${oversizedFiles.map(f => f.name).join(", ")}`, {
         description: "Please compress or split these files before uploading.",
         duration: 5000,
       })
     }
-
     if (validFiles.length === 0) return
 
     const newEntries: FileEntry[] = validFiles.map((file) => {
       const title = titleFromFilename(file.name)
       return {
-        id: generateId(),
-        file,
-        title,
+        id: generateId(), file, title,
         description: "",
         categoryId: globalCategory,
         structureLocation: { ...globalStructureLocation },
@@ -128,34 +129,30 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         status: "pending",
         progress: 0,
         showAdvanced: false,
+        isDuplicate: false,
+        replaceExisting: false,
       }
     })
     setEntries((prev) => [...prev, ...newEntries])
-
     if (validFiles.length > 0 && oversizedFiles.length > 0) {
       toast.info(`Added ${validFiles.length} file(s). ${oversizedFiles.length} file(s) skipped (over 50MB).`)
     }
   }
 
   function handleDrag(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     if (e.type === "dragenter" || e.type === "dragover") setDragActive(true)
     else if (e.type === "dragleave") setDragActive(false)
   }
 
   function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     setDragActive(false)
     if (e.dataTransfer.files) addFiles(e.dataTransfer.files)
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) {
-      addFiles(e.target.files)
-      e.target.value = ""
-    }
+    if (e.target.files) { addFiles(e.target.files); e.target.value = "" }
   }
 
   function removeEntry(id: string) {
@@ -166,11 +163,48 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))
   }
 
-  // Apply global settings to all pending entries
+  // ── Bulk Title Editor Actions ──────────────────────────────────────
+  function applyBulkPrefix() {
+    if (!bulkPrefix.trim()) return
+    setEntries((prev) => prev.map((e) =>
+      e.status === "pending"
+        ? { ...e, title: bulkPrefix + e.title, customSlug: slugify(bulkPrefix + e.title) }
+        : e
+    ))
+    toast.success(`Prefix "${bulkPrefix}" added to all pending titles`)
+    setBulkPrefix("")
+  }
+
+  function applyBulkSuffix() {
+    if (!bulkSuffix.trim()) return
+    setEntries((prev) => prev.map((e) =>
+      e.status === "pending"
+        ? { ...e, title: e.title + bulkSuffix, customSlug: slugify(e.title + bulkSuffix) }
+        : e
+    ))
+    toast.success(`Suffix "${bulkSuffix}" added to all pending titles`)
+    setBulkSuffix("")
+  }
+
+  function applyBulkFindReplace() {
+    if (!bulkFind.trim()) return
+    let count = 0
+    setEntries((prev) => prev.map((e) => {
+      if (e.status !== "pending") return e
+      if (!e.title.includes(bulkFind)) return e
+      const newTitle = e.title.split(bulkFind).join(bulkReplace)
+      count++
+      return { ...e, title: newTitle, customSlug: slugify(newTitle) }
+    }))
+    toast.success(count > 0 ? `Replaced in ${count} title(s)` : `"${bulkFind}" not found in any title`)
+    setBulkFind(""); setBulkReplace("")
+  }
+
+  // ── Global Settings ─────────────────────────────────────────────
   function applyGlobalSettings() {
     setEntries((prev) =>
-      prev.map((e) => (e.status === "pending" ? { 
-        ...e, 
+      prev.map((e) => (e.status === "pending" ? {
+        ...e,
         categoryId: globalCategory || e.categoryId,
         visibility: globalVisibility,
         tags: [...new Set([...e.tags, ...globalTags])],
@@ -180,86 +214,54 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
     toast.success("Global settings applied to all pending files")
   }
 
-  // Handle adding tags
   function addGlobalTag(tag: string) {
     const trimmed = tag.trim().toLowerCase()
-    if (trimmed && !globalTags.includes(trimmed)) {
-      setGlobalTags([...globalTags, trimmed])
-    }
+    if (trimmed && !globalTags.includes(trimmed)) setGlobalTags([...globalTags, trimmed])
     setGlobalTagInput("")
   }
-
-  function removeGlobalTag(tag: string) {
-    setGlobalTags(globalTags.filter(t => t !== tag))
-  }
+  function removeGlobalTag(tag: string) { setGlobalTags(globalTags.filter(t => t !== tag)) }
 
   function addEntryTag(id: string, tag: string) {
     const entry = entries.find(e => e.id === id)
     if (entry) {
       const trimmed = tag.trim().toLowerCase()
-      if (trimmed && !entry.tags.includes(trimmed)) {
-        updateEntry(id, { tags: [...entry.tags, trimmed] })
-      }
+      if (trimmed && !entry.tags.includes(trimmed)) updateEntry(id, { tags: [...entry.tags, trimmed] })
     }
   }
-
   function removeEntryTag(id: string, tag: string) {
     const entry = entries.find(e => e.id === id)
-    if (entry) {
-      updateEntry(id, { tags: entry.tags.filter(t => t !== tag) })
-    }
+    if (entry) updateEntry(id, { tags: entry.tags.filter(t => t !== tag) })
   }
 
+  // ── Upload Logic ────────────────────────────────────────────────
   const uploadEntry = useCallback(async (entry: FileEntry): Promise<boolean> => {
-    updateEntry(entry.id, { status: "uploading", progress: 0 })
+    updateEntry(entry.id, { status: "uploading", progress: 0, isDuplicate: false })
     try {
       const token = sessionStorage.getItem("admin_token")
       const title = entry.title.trim() || titleFromFilename(entry.file.name)
 
-      // Step 1: Get signed upload URL
       updateEntry(entry.id, { progress: 10 })
       const urlRes = await fetch("/api/pdfs/get-upload-url", {
         method: "POST",
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ 
-          filename: entry.file.name,
-          contentType: "application/pdf"
-        }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: entry.file.name, contentType: "application/pdf" }),
       })
-      
       if (!urlRes.ok) {
-        const urlData = await urlRes.json().catch(() => ({}))
-        throw new Error(urlData.error || "Failed to get upload URL")
+        const d = await urlRes.json().catch(() => ({}))
+        throw new Error(d.error || "Failed to get upload URL")
       }
-      
       const { signedUrl, filePath } = await urlRes.json()
       updateEntry(entry.id, { progress: 20 })
 
-      // Step 2: Upload file with progress tracking
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-        
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            const uploadProgress = 20 + Math.round((event.loaded / event.total) * 60)
-            updateEntry(entry.id, { progress: uploadProgress })
-          }
+        xhr.upload.addEventListener("progress", (ev) => {
+          if (ev.lengthComputable)
+            updateEntry(entry.id, { progress: 20 + Math.round((ev.loaded / ev.total) * 60) })
         })
-
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve()
-          } else {
-            reject(new Error("Failed to upload file to storage"))
-          }
-        })
-
+        xhr.addEventListener("load", () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Failed to upload file to storage")))
         xhr.addEventListener("error", () => reject(new Error("Network error during upload")))
         xhr.addEventListener("abort", () => reject(new Error("Upload was cancelled")))
-
         xhr.open("PUT", signedUrl)
         xhr.setRequestHeader("Content-Type", "application/pdf")
         xhr.send(entry.file)
@@ -267,29 +269,31 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
 
       updateEntry(entry.id, { progress: 85 })
 
-      // Step 3: Save metadata with all advanced options
       const metaRes = await fetch("/api/pdfs/save-metadata", {
         method: "POST",
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
-          description: entry.description,
-          filePath,
-          fileSize: entry.file.size,
-          categoryId: entry.categoryId || null,
-          tags: entry.tags,
-          visibility: entry.visibility,
-          scheduledAt: entry.scheduledAt,
-          allowDownload: entry.allowDownload,
+          title, description: entry.description, filePath,
+          fileSize: entry.file.size, categoryId: entry.categoryId || null,
+          tags: entry.tags, visibility: entry.visibility,
+          scheduledAt: entry.scheduledAt, allowDownload: entry.allowDownload,
           customSlug: entry.customSlug || slugify(title),
+          replace: entry.replaceExisting ?? false,
         }),
       })
 
       if (!metaRes.ok) {
         const metaData = await metaRes.json().catch(() => ({}))
+        if (metaData.duplicate) {
+          // Duplicate detected — let user decide to replace
+          updateEntry(entry.id, {
+            status: "error",
+            progress: 0,
+            error: "A PDF with this title already exists",
+            isDuplicate: true,
+          })
+          return false
+        }
         throw new Error(metaData.error || "Failed to save PDF metadata")
       }
 
@@ -304,44 +308,44 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
           errorMsg = err.message
         }
       }
-      updateEntry(entry.id, { status: "error", progress: 0, error: errorMsg })
+      updateEntry(entry.id, { status: "error", progress: 0, error: errorMsg, isDuplicate: false })
       return false
     }
   }, [])
 
+  async function retryWithReplace(id: string) {
+    const entry = entries.find(e => e.id === id)
+    if (!entry) return
+    updateEntry(id, { replaceExisting: true, isDuplicate: false })
+    // Use the updated entry
+    const updated = { ...entry, replaceExisting: true, isDuplicate: false }
+    const ok = await uploadEntry(updated)
+    if (ok) {
+      toast.success("PDF replaced successfully!")
+      onSuccess()
+    }
+  }
+
   async function handleUploadAll() {
     const pending = entries.filter((e) => e.status === "pending")
-    if (pending.length === 0) {
-      toast.error("No files to upload")
-      return
-    }
+    if (pending.length === 0) { toast.error("No files to upload"); return }
     setIsUploading(true)
-    
     let successCount = 0
     const results: boolean[] = []
-    
     for (let i = 0; i < pending.length; i += MAX_PARALLEL_UPLOADS) {
       const batch = pending.slice(i, i + MAX_PARALLEL_UPLOADS)
       const batchResults = await Promise.all(batch.map(entry => uploadEntry(entry)))
       results.push(...batchResults)
       successCount += batchResults.filter(Boolean).length
     }
-    
     setIsUploading(false)
-    
     if (successCount > 0) {
       toast.success(`${successCount} PDF${successCount > 1 ? "s" : ""} uploaded successfully!`)
       onSuccess()
     }
-    
     const failedCount = results.filter(r => !r).length
-    if (failedCount > 0) {
-      toast.error(`${failedCount} file${failedCount > 1 ? "s" : ""} failed to upload`)
-    }
-    
-    setTimeout(() => {
-      setEntries((prev) => prev.filter((e) => e.status !== "done"))
-    }, 2000)
+    if (failedCount > 0) toast.error(`${failedCount} file${failedCount > 1 ? "s" : ""} failed to upload`)
+    setTimeout(() => setEntries((prev) => prev.filter((e) => e.status !== "done")), 2000)
   }
 
   const pendingCount = entries.filter((e) => e.status === "pending").length
@@ -362,39 +366,25 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         onClick={() => fileInputRef.current?.click()}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,80,200,0.05),transparent_70%)] rounded-xl sm:rounded-2xl pointer-events-none" />
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          multiple
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        
+        <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" multiple onChange={handleFileChange} className="hidden" />
         <div className="relative">
           <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300">
             <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           </div>
           <p className="font-semibold text-sm sm:text-lg text-foreground">Drop PDFs here or click to select</p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Multiple files supported (max 50MB each)</p>
-          
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4">
             <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-primary bg-primary/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
-              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              Fast
+              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> Fast
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-green-600 bg-green-500/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
-              <Files className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              Batch
+              <Files className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> Batch
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-blue-600 bg-blue-500/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
-              <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              Tags
+              <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> Tags
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-amber-600 bg-amber-500/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
-              <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              Schedule
+              <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> Schedule
             </span>
           </div>
         </div>
@@ -405,10 +395,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         <Collapsible open={showGlobalSettings} onOpenChange={setShowGlobalSettings}>
           <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-muted/10 overflow-hidden">
             <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50"
-              >
+              <Button variant="ghost" className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-primary/10">
                     <Settings2 className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-primary" />
@@ -418,27 +405,18 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     <p className="text-[10px] sm:text-xs text-muted-foreground">Apply to all pending files</p>
                   </div>
                 </div>
-                {showGlobalSettings ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                )}
+                {showGlobalSettings ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
               </Button>
             </CollapsibleTrigger>
-            
             <CollapsibleContent>
               <div className="p-4 pt-0 space-y-4 border-t border-border/50">
-                {/* Category & Visibility Row */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
-                      <FolderPlus className="h-4 w-4 text-muted-foreground" />
-                      Category
+                      <FolderPlus className="h-4 w-4 text-muted-foreground" /> Category
                     </Label>
                     <Select value={globalCategory} onValueChange={setGlobalCategory}>
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Select category" /></SelectTrigger>
                       <SelectContent>
                         {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
@@ -451,22 +429,17 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                      Visibility
+                      <Eye className="h-4 w-4 text-muted-foreground" /> Visibility
                     </Label>
                     <Select value={globalVisibility} onValueChange={(v) => setGlobalVisibility(v as VisibilityType)}>
-                      <SelectTrigger className="h-10">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {visibilityOptions.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             <span className="flex items-center gap-2">
-                              {opt.icon}
-                              <span>{opt.label}</span>
+                              {opt.icon} <span>{opt.label}</span>
                               <span className="text-xs text-muted-foreground">- {opt.description}</span>
                             </span>
                           </SelectItem>
@@ -475,49 +448,27 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     </Select>
                   </div>
                 </div>
-
-                {/* Content Structure Location */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium flex items-center gap-2">
-                    <FolderPlus className="h-4 w-4 text-muted-foreground" />
-                    Content Location
+                    <FolderPlus className="h-4 w-4 text-muted-foreground" /> Content Location
                   </Label>
-                  <StructureSelector
-                    value={globalStructureLocation}
-                    onChange={setGlobalStructureLocation}
-                    placeholder="Select folder/category/section"
-                    className="w-full"
-                  />
+                  <StructureSelector value={globalStructureLocation} onChange={setGlobalStructureLocation} placeholder="Select folder/category/section" className="w-full" />
                   <p className="text-xs text-muted-foreground">All new PDFs will be added to this location</p>
                 </div>
-
-                {/* Tags Input */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-muted-foreground" />
-                    Tags (for search & filtering)
+                    <Tag className="h-4 w-4 text-muted-foreground" /> Tags (for search &amp; filtering)
                   </Label>
                   <div className="flex flex-wrap gap-2 min-h-[40px] p-2 rounded-lg border border-border bg-background">
                     {globalTags.map((tag) => (
-                      <Badge 
-                        key={tag} 
-                        variant="secondary" 
-                        className="gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
-                        onClick={() => removeGlobalTag(tag)}
-                      >
-                        #{tag}
-                        <X className="h-3 w-3" />
+                      <Badge key={tag} variant="secondary" className="gap-1 pr-1 cursor-pointer hover:bg-destructive/20" onClick={() => removeGlobalTag(tag)}>
+                        #{tag}<X className="h-3 w-3" />
                       </Badge>
                     ))}
                     <Input
                       value={globalTagInput}
                       onChange={(e) => setGlobalTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === ",") {
-                          e.preventDefault()
-                          addGlobalTag(globalTagInput)
-                        }
-                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addGlobalTag(globalTagInput) } }}
                       onBlur={() => addGlobalTag(globalTagInput)}
                       placeholder="Type and press Enter..."
                       className="flex-1 min-w-[120px] border-0 shadow-none h-7 px-1 focus-visible:ring-0"
@@ -525,15 +476,117 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   </div>
                   <p className="text-xs text-muted-foreground">Press Enter or comma to add tags</p>
                 </div>
-
-                <Button 
-                  onClick={applyGlobalSettings}
-                  className="w-full gap-2"
-                  variant="outline"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Apply to All Pending Files
+                <Button onClick={applyGlobalSettings} className="w-full gap-2" variant="outline">
+                  <Sparkles className="h-4 w-4" /> Apply to All Pending Files
                 </Button>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
+
+      {/* ── Bulk Title Editor ─────────────────────────────────────── */}
+      {entries.filter(e => e.status === "pending").length > 1 && (
+        <Collapsible open={showBulkTitleEditor} onOpenChange={setShowBulkTitleEditor}>
+          <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-muted/10 overflow-hidden">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                    <Type className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-foreground text-xs sm:text-sm">Bulk Title Editor</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Add prefix/suffix or find &amp; replace in all titles</p>
+                  </div>
+                </div>
+                {showBulkTitleEditor ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-0 space-y-4 border-t border-border/50">
+
+                {/* Prefix */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Prefix</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={bulkPrefix}
+                      onChange={(e) => setBulkPrefix(e.target.value)}
+                      placeholder='e.g. "Chapter 1 - " or "[2024] "'
+                      className="h-9 flex-1"
+                      onKeyDown={(e) => { if (e.key === "Enter") applyBulkPrefix() }}
+                    />
+                    <Button
+                      variant="outline"
+                      className="h-9 gap-1.5 whitespace-nowrap"
+                      onClick={applyBulkPrefix}
+                      disabled={!bulkPrefix.trim()}
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" /> Add Prefix
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Prepends text to the start of every pending title</p>
+                </div>
+
+                {/* Suffix */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Suffix</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={bulkSuffix}
+                      onChange={(e) => setBulkSuffix(e.target.value)}
+                      placeholder='e.g. " v2" or " (Updated)"'
+                      className="h-9 flex-1"
+                      onKeyDown={(e) => { if (e.key === "Enter") applyBulkSuffix() }}
+                    />
+                    <Button
+                      variant="outline"
+                      className="h-9 gap-1.5 whitespace-nowrap"
+                      onClick={applyBulkSuffix}
+                      disabled={!bulkSuffix.trim()}
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" /> Add Suffix
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Appends text to the end of every pending title</p>
+                </div>
+
+                {/* Find & Replace */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Find &amp; Replace</Label>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/70 select-none">FIND</span>
+                      <Input
+                        value={bulkFind}
+                        onChange={(e) => setBulkFind(e.target.value)}
+                        placeholder="Text to find..."
+                        className="h-9 pl-10"
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/70 select-none">WITH</span>
+                      <Input
+                        value={bulkReplace}
+                        onChange={(e) => setBulkReplace(e.target.value)}
+                        placeholder="Replace with..."
+                        className="h-9 pl-10"
+                        onKeyDown={(e) => { if (e.key === "Enter") applyBulkFindReplace() }}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full h-9 gap-1.5"
+                    onClick={applyBulkFindReplace}
+                    disabled={!bulkFind.trim()}
+                  >
+                    <Replace className="h-3.5 w-3.5" /> Apply Find &amp; Replace
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">Replaces all occurrences in every pending title. Leave "Replace with" blank to delete the found text.</p>
+                </div>
+
               </div>
             </CollapsibleContent>
           </div>
@@ -545,10 +598,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
         <Collapsible>
           <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-muted/10 overflow-hidden">
             <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50"
-              >
+              <Button variant="ghost" className="w-full flex items-center justify-between p-3 sm:p-4 h-auto hover:bg-muted/50">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-accent/10">
                     <FolderPlus className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-accent" />
@@ -580,7 +630,9 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                 entry.status === "done"
                   ? "border-green-500/50 bg-green-500/5"
                   : entry.status === "error"
-                  ? "border-destructive/50 bg-destructive/5"
+                  ? entry.isDuplicate
+                    ? "border-amber-400/60 bg-amber-500/5"
+                    : "border-destructive/50 bg-destructive/5"
                   : entry.status === "uploading"
                   ? "border-primary/50 bg-primary/5"
                   : "border-border hover:border-primary/30"
@@ -604,8 +656,11 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     </div>
                   )}
                   {entry.status === "error" && (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/20">
-                      <AlertCircle className="h-5 w-5 text-destructive" />
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${entry.isDuplicate ? "bg-amber-500/20" : "bg-destructive/20"}`}>
+                      {entry.isDuplicate
+                        ? <AlertCircle className="h-5 w-5 text-amber-500" />
+                        : <AlertCircle className="h-5 w-5 text-destructive" />
+                      }
                     </div>
                   )}
                   {entry.status === "pending" && (
@@ -619,12 +674,7 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                 <div className="flex-1 min-w-0">
                   <Input
                     value={entry.title}
-                    onChange={(e) => {
-                      updateEntry(entry.id, { 
-                        title: e.target.value,
-                        customSlug: slugify(e.target.value)
-                      })
-                    }}
+                    onChange={(e) => updateEntry(entry.id, { title: e.target.value, customSlug: slugify(e.target.value) })}
                     placeholder="PDF title"
                     disabled={entry.status !== "pending"}
                     className="h-9 text-sm font-medium"
@@ -636,14 +686,10 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     {entry.tags.length > 0 && (
                       <div className="flex gap-1">
                         {entry.tags.slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
-                            #{tag}
-                          </Badge>
+                          <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">#{tag}</Badge>
                         ))}
                         {entry.tags.length > 3 && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            +{entry.tags.length - 3}
-                          </Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">+{entry.tags.length - 3}</Badge>
                         )}
                       </div>
                     )}
@@ -655,12 +701,8 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     )}
                     {entry.scheduledAt && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
-                        <Clock className="h-2.5 w-2.5" />
-                        Scheduled
+                        <Clock className="h-2.5 w-2.5" /> Scheduled
                       </Badge>
-                    )}
-                    {entry.status === "error" && (
-                      <span className="text-xs text-destructive">{entry.error}</span>
                     )}
                     {entry.status === "uploading" && (
                       <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
@@ -668,6 +710,35 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                       </span>
                     )}
                   </div>
+
+                  {/* Duplicate error with Replace button */}
+                  {entry.status === "error" && entry.isDuplicate && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-amber-600 font-medium">{entry.error}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[11px] px-2 gap-1 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+                        onClick={() => retryWithReplace(entry.id)}
+                      >
+                        <RefreshCw className="h-3 w-3" /> Replace existing
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[11px] px-2 gap-1 text-muted-foreground"
+                        onClick={() => updateEntry(entry.id, { status: "pending", isDuplicate: false, error: undefined })}
+                      >
+                        Edit title
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Generic error (non-duplicate) */}
+                  {entry.status === "error" && !entry.isDuplicate && entry.error && (
+                    <span className="block mt-1 text-xs text-destructive">{entry.error}</span>
+                  )}
+
                   {entry.status === "uploading" && (
                     <Progress value={entry.progress} className="h-2 mt-2" />
                   )}
@@ -686,36 +757,30 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                 {/* Actions */}
                 {entry.status === "pending" && (
                   <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 hover:bg-primary/10"
-                      onClick={() => updateEntry(entry.id, { showAdvanced: !entry.showAdvanced })}
-                    >
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 hover:bg-primary/10"
+                      onClick={() => updateEntry(entry.id, { showAdvanced: !entry.showAdvanced })}>
                       <Settings2 className="h-4 w-4" />
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => removeEntry(entry.id)}
-                    >
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => removeEntry(entry.id)}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
+                {(entry.status === "error") && (
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive shrink-0"
+                    onClick={() => removeEntry(entry.id)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
-              {/* Advanced Options (Collapsible) */}
+              {/* Advanced Options */}
               {entry.showAdvanced && entry.status === "pending" && (
                 <div className="border-t border-border/50 p-4 space-y-4 bg-muted/20">
-                  {/* Description */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      Description
+                      <FileText className="h-4 w-4 text-muted-foreground" /> Description
                     </Label>
                     <Textarea
                       value={entry.description}
@@ -725,22 +790,15 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                     />
                   </div>
 
-                  {/* Tags */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-muted-foreground" />
-                      Tags
+                      <Tag className="h-4 w-4 text-muted-foreground" /> Tags
                     </Label>
                     <div className="flex flex-wrap gap-2 min-h-[36px] p-2 rounded-lg border border-border bg-background">
                       {entry.tags.map((tag) => (
-                        <Badge 
-                          key={tag} 
-                          variant="secondary" 
-                          className="gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
-                          onClick={() => removeEntryTag(entry.id, tag)}
-                        >
-                          #{tag}
-                          <X className="h-3 w-3" />
+                        <Badge key={tag} variant="secondary" className="gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
+                          onClick={() => removeEntryTag(entry.id, tag)}>
+                          #{tag}<X className="h-3 w-3" />
                         </Badge>
                       ))}
                       <Input
@@ -758,37 +816,24 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
-                    {/* Visibility */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                        Visibility
+                        <Eye className="h-4 w-4 text-muted-foreground" /> Visibility
                       </Label>
-                      <Select 
-                        value={entry.visibility} 
-                        onValueChange={(v) => updateEntry(entry.id, { visibility: v as VisibilityType })}
-                      >
-                        <SelectTrigger className="h-10">
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Select value={entry.visibility} onValueChange={(v) => updateEntry(entry.id, { visibility: v as VisibilityType })}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {visibilityOptions.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
-                              <span className="flex items-center gap-2">
-                                {opt.icon}
-                                {opt.label}
-                              </span>
+                              <span className="flex items-center gap-2">{opt.icon} {opt.label}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-
-                    {/* Schedule */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        Schedule Publish
+                        <Calendar className="h-4 w-4 text-muted-foreground" /> Schedule Publish
                       </Label>
                       <Input
                         type="datetime-local"
@@ -800,11 +845,9 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
-                    {/* Custom Slug */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-2">
-                        <Hash className="h-4 w-4 text-muted-foreground" />
-                        Custom URL Slug
+                        <Hash className="h-4 w-4 text-muted-foreground" /> Custom URL Slug
                       </Label>
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">/pdf/</span>
@@ -816,22 +859,16 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                         />
                       </div>
                     </div>
-
-                    {/* Download Permission */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-2">
-                        <Download className="h-4 w-4 text-muted-foreground" />
-                        Download
+                        <Download className="h-4 w-4 text-muted-foreground" /> Download
                       </Label>
                       <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
                         <div className="flex items-center gap-2">
                           <Shield className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">Allow Download</span>
                         </div>
-                        <Switch
-                          checked={entry.allowDownload}
-                          onCheckedChange={(checked) => updateEntry(entry.id, { allowDownload: checked })}
-                        />
+                        <Switch checked={entry.allowDownload} onCheckedChange={(checked) => updateEntry(entry.id, { allowDownload: checked })} />
                       </div>
                     </div>
                   </div>
@@ -845,11 +882,9 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
       {/* Upload Summary & Button */}
       {entries.length > 0 && (
         <div className="space-y-3">
-          {/* Summary Stats */}
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge variant="outline" className="gap-1">
-              <FileCheck className="h-3 w-3" />
-              {pendingCount} pending
+              <FileCheck className="h-3 w-3" /> {pendingCount} pending
             </Badge>
             {entries.filter(e => e.status === "uploading").length > 0 && (
               <Badge variant="secondary" className="gap-1">
@@ -863,10 +898,16 @@ export function PDFUploadForm({ categories, onSuccess }: PDFUploadFormProps) {
                 {entries.filter(e => e.status === "done").length} done
               </Badge>
             )}
-            {entries.filter(e => e.status === "error").length > 0 && (
+            {entries.filter(e => e.status === "error" && e.isDuplicate).length > 0 && (
+              <Badge variant="outline" className="gap-1 border-amber-400 text-amber-600">
+                <AlertCircle className="h-3 w-3" />
+                {entries.filter(e => e.status === "error" && e.isDuplicate).length} duplicate
+              </Badge>
+            )}
+            {entries.filter(e => e.status === "error" && !e.isDuplicate).length > 0 && (
               <Badge variant="destructive" className="gap-1">
                 <AlertCircle className="h-3 w-3" />
-                {entries.filter(e => e.status === "error").length} failed
+                {entries.filter(e => e.status === "error" && !e.isDuplicate).length} failed
               </Badge>
             )}
           </div>
