@@ -360,6 +360,35 @@
 }
 
 /* =====================================================
+   HOMEPAGE ANIMATIONS
+   ===================================================== */
+
+@keyframes float1 {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes float2 {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-33.333%); }
+}
+@keyframes marqueeLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-33.333%); }
+}
+@keyframes marqueeRight {
+  from { transform: translateX(-33.333%); }
+  to   { transform: translateX(0); }
+}
+
+.animate-marquee        { animation: marquee      28s linear infinite; }
+.animate-marquee-left   { animation: marqueeLeft  35s linear infinite; }
+.animate-marquee-right  { animation: marqueeRight 40s linear infinite; }
+
+/* =====================================================
    PRINT STYLES
    ===================================================== */
 

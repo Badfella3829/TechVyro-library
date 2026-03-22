@@ -425,13 +425,6 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Floating animation keyframes */}
-      <style>{`
-        @keyframes float1 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @keyframes float2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-        @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-33.333%)} }
-        .animate-marquee { animation: marquee 28s linear infinite; }
-      `}</style>
     </section>
   )
 }

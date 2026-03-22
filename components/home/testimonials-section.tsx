@@ -198,10 +198,6 @@ export function TestimonialsSection() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes marqueeLeft  { from{transform:translateX(0)} to{transform:translateX(-33.333%)} }
-        @keyframes marqueeRight { from{transform:translateX(-33.333%)} to{transform:translateX(0)} }
-      `}</style>
     </section>
   )
 }
