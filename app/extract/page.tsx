@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -37,6 +37,17 @@ export default function ExtractPage() {
   const [apiBase, setApiBase] = useState("")
   const [webBase, setWebBase] = useState("")
   const [searched, setSearched] = useState(false)
+  const [credits, setCredits] = useState<{ credits: number; is_premium: boolean } | null>(null)
+
+  // Auto-initialize credits when user is logged in
+  useEffect(() => {
+    if (user) {
+      fetch("/api/credits")
+        .then(r => r.json())
+        .then(d => { if (d.credits) setCredits(d.credits) })
+        .catch(() => {})
+    }
+  }, [user])
 
   const handleSearch = async () => {
     if (!url.trim()) return

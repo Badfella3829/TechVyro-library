@@ -10,11 +10,11 @@ Full integration of test-series extraction from AppX-based educational websites:
 - **`/api/extract/route.ts`** — Scrapes test series list via AppX API + `__NEXT_DATA__` fallback
 - **`/api/extract/tests/route.ts`** — Fetches subjects + tests for a specific series slug
 - **`/api/extract/questions/route.ts`** — Fetches & normalizes questions into QuizPlayer format
-- **`/api/credits/route.ts`** — Credits management (GET: fetch, POST: use/referral)
-- **`scripts/008_add_credits_referral.sql`** — Supabase table for credits + referral system
+- **`/api/credits/route.ts`** — Credits management (GET: fetch/auto-init, POST: use/referral)
 
 ### Credits & Referral System
-- New users get 10 free credits automatically
+- Credits stored in Supabase **user_metadata** — no extra SQL table or manual setup needed
+- New users get 10 free credits automatically on first request
 - Each test extraction costs 1 credit
 - Premium users have unlimited extractions
 - Referral codes: share your code, both parties get +5 credits

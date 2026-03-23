@@ -2,33 +2,42 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
+// Credits are stored in user_metadata — no extra table needed, works automatically.
+// Structure: { credits: number, is_premium: boolean, referral_code: string, referred_by?: string }
+
+function generateReferralCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
+
+function defaultMeta(existingMeta: Record<string, unknown> = {}) {
+  return {
+    credits: 10,
+    is_premium: false,
+    referral_code: generateReferralCode(),
+    referred_by: null,
+    ...existingMeta,
+  }
+}
+
 export async function GET() {
   try {
     const supabase = await createClient()
     if (!supabase) return NextResponse.json({ error: "DB not configured" }, { status: 503 })
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data, error } = await supabase
-      .from("user_credits")
-      .select("*")
-      .eq("user_id", user.id)
-      .single()
+    const admin = createAdminClient()
+    const meta = (user.user_metadata || {}) as Record<string, unknown>
 
-    if (error || !data) {
-      // Auto-create credits record for new user
-      const admin = createAdminClient()
-      const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-      const { data: created } = await admin
-        .from("user_credits")
-        .insert({ user_id: user.id, credits: 10, is_premium: false, referral_code: referralCode })
-        .select()
-        .single()
-      return NextResponse.json({ credits: created })
+    // Auto-init credits for first-time users
+    if (meta.credits === undefined || meta.referral_code === undefined) {
+      const newMeta = defaultMeta(meta)
+      await admin.auth.admin.updateUserById(user.id, { user_metadata: newMeta })
+      return NextResponse.json({ credits: newMeta })
     }
 
-    return NextResponse.json({ credits: data })
+    return NextResponse.json({ credits: meta })
   } catch {
     return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
@@ -39,75 +48,51 @@ export async function POST(request: Request) {
     const supabase = await createClient()
     if (!supabase) return NextResponse.json({ error: "DB not configured" }, { status: 503 })
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await request.json()
     const action = body.action as string
-
     const admin = createAdminClient()
 
-    if (action === "use") {
-      // Deduct 1 credit
-      const { data: current } = await admin
-        .from("user_credits")
-        .select("credits, is_premium")
-        .eq("user_id", user.id)
-        .single()
+    const meta = defaultMeta((user.user_metadata || {}) as Record<string, unknown>)
 
-      if (!current) return NextResponse.json({ error: "Account not found" }, { status: 404 })
-      if (!current.is_premium && current.credits <= 0) {
-        return NextResponse.json({ error: "No credits left", credits: 0 }, { status: 402 })
+    if (action === "use") {
+      if (!meta.is_premium && (meta.credits as number) <= 0) {
+        return NextResponse.json({ error: "No credits left. Refer friends to earn more!", credits: 0 }, { status: 402 })
       }
 
-      if (!current.is_premium) {
-        const { data: updated } = await admin
-          .from("user_credits")
-          .update({ credits: current.credits - 1 })
-          .eq("user_id", user.id)
-          .select()
-          .single()
+      if (!meta.is_premium) {
+        const updated = { ...meta, credits: (meta.credits as number) - 1 }
+        await admin.auth.admin.updateUserById(user.id, { user_metadata: updated })
         return NextResponse.json({ success: true, credits: updated })
       }
 
-      return NextResponse.json({ success: true, credits: current })
+      return NextResponse.json({ success: true, credits: meta })
     }
 
     if (action === "referral") {
-      // Apply referral code from another user
-      const code = body.code as string
+      const code = (body.code as string)?.trim().toUpperCase()
       if (!code) return NextResponse.json({ error: "Code required" }, { status: 400 })
+      if (meta.referred_by) return NextResponse.json({ error: "Already used a referral code" }, { status: 400 })
+      if (meta.referral_code === code) return NextResponse.json({ error: "Cannot use your own code" }, { status: 400 })
 
-      const { data: referrer } = await admin
-        .from("user_credits")
-        .select("user_id, credits")
-        .eq("referral_code", code.toUpperCase())
-        .single()
+      // Find the referrer by listing all users and checking their metadata
+      const { data: { users: allUsers }, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 })
+      if (listErr) return NextResponse.json({ error: "Could not verify code" }, { status: 500 })
 
+      const referrer = allUsers.find(u => (u.user_metadata?.referral_code as string)?.toUpperCase() === code)
       if (!referrer) return NextResponse.json({ error: "Invalid referral code" }, { status: 404 })
-      if (referrer.user_id === user.id) return NextResponse.json({ error: "Cannot use your own code" }, { status: 400 })
 
-      // Check not already referred
-      const { data: mine } = await admin
-        .from("user_credits")
-        .select("referred_by, credits")
-        .eq("user_id", user.id)
-        .single()
+      // Give referrer +5 credits
+      const referrerMeta = defaultMeta((referrer.user_metadata || {}) as Record<string, unknown>)
+      await admin.auth.admin.updateUserById(referrer.id, {
+        user_metadata: { ...referrerMeta, credits: (referrerMeta.credits as number) + 5 }
+      })
 
-      if (mine?.referred_by) return NextResponse.json({ error: "Already used a referral code" }, { status: 400 })
-
-      // Give 5 credits to both
-      await admin
-        .from("user_credits")
-        .update({ credits: (referrer.credits || 0) + 5 })
-        .eq("user_id", referrer.user_id)
-
-      const { data: updated } = await admin
-        .from("user_credits")
-        .update({ credits: (mine?.credits || 0) + 5, referred_by: code.toUpperCase() })
-        .eq("user_id", user.id)
-        .select()
-        .single()
+      // Give current user +5 credits + mark as referred
+      const updated = { ...meta, credits: (meta.credits as number) + 5, referred_by: code }
+      await admin.auth.admin.updateUserById(user.id, { user_metadata: updated })
 
       return NextResponse.json({ success: true, credits: updated, bonusEarned: 5 })
     }
