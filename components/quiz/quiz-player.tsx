@@ -565,7 +565,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, us
                     onClick={handleNameSubmit}
                     disabled={!playerName.trim()}
                   >
-                    Continue →
+                    Continue -&gt;
                   </Button>
                 </div>
               </div>
@@ -589,7 +589,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, us
                     { icon: <FileText className="h-4 w-4 text-primary" />, label: `${questions.length} Questions`, bg: darkMode ? "bg-gray-700 border-gray-600" : "bg-primary/5 border-primary/15" },
                     { icon: <Clock className="h-4 w-4 text-accent" />, label: `${Math.floor(timeLimit / 60)} Minutes`, bg: darkMode ? "bg-gray-700 border-gray-600" : "bg-accent/5 border-accent/15" },
                     { icon: <CheckCircle className="h-4 w-4 text-green-500" />, label: "+1 Correct", bg: darkMode ? "bg-gray-700 border-gray-600" : "bg-green-500/5 border-green-500/15" },
-                    { icon: <XCircle className="h-4 w-4 text-red-500" />, label: "−0.25 Wrong", bg: darkMode ? "bg-gray-700 border-gray-600" : "bg-red-500/5 border-red-500/15" },
+                    { icon: <XCircle className="h-4 w-4 text-red-500" />, label: "-0.25 Wrong", bg: darkMode ? "bg-gray-700 border-gray-600" : "bg-red-500/5 border-red-500/15" },
                   ].map((item, i) => (
                     <div key={i} className={`flex items-center gap-2.5 p-3 rounded-xl border text-left ${item.bg}`}>
                       {item.icon}
@@ -599,7 +599,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, us
                 </div>
 
                 <p className="text-[11px] text-muted-foreground mb-5">
-                  Tip: Use arrow keys to navigate · 1–5 to select · M to mark for review
+                  Tip: Use arrow keys to navigate . 1-5 to select . M to mark for review
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -608,7 +608,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, us
                     className="flex-1 font-bold py-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg shadow-primary/20"
                     onClick={handleStart}
                   >
-                    Start Test →
+                    Start Test -&gt;
                   </Button>
                   <Button variant="outline" size="lg" asChild className="py-6">
                     <Link href="/quiz">
@@ -763,7 +763,7 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, us
 
             <div className="mt-4 flex items-center justify-center gap-4 text-xs text-muted-foreground">
               <Link href="/quiz" className="hover:text-primary transition-colors">More Quizzes</Link>
-              <span>•</span>
+              <span>&bull;</span>
               <Link href="/quiz/leaderboard" className="hover:text-primary transition-colors">View Leaderboard</Link>
             </div>
           </div>
