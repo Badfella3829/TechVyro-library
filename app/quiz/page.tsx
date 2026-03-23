@@ -231,204 +231,188 @@ export default function QuizzesPage() {
 
       {/* ── Main Content ── */}
       <main className="flex-1 container mx-auto px-4 py-6 sm:py-8">
-        <div className="flex gap-6 items-start">
+        <div className="w-full">
 
-          {/* ── LEFT: Sidebar (desktop only) ── */}
-          <div className="hidden lg:block w-64 xl:w-[268px] shrink-0">
-            <ContentStructureNav
-              filter={structureFilter}
-              onFilterChange={(f) => {
-                setStructureFilter(f)
-                setSelectedCategory("All")
-                setSearchRaw("")
-              }}
-              showType="quizzes"
-              autoRefreshMs={120_000}
-            />
-          </div>
+          {/* ── Sticky Filter Bar (all screen sizes) ── */}
+          <div className="sticky top-[57px] z-20 bg-background/95 backdrop-blur-sm pb-3 pt-1 -mx-4 px-4 border-b border-border/40 mb-5">
 
-          {/* ── RIGHT: Filters + Grid ── */}
-          <div className="flex-1 min-w-0">
-
-            {/* ── Sticky Filter Bar ── */}
-            <div className="sticky top-[57px] z-20 bg-background/95 backdrop-blur-sm pb-3 pt-1 -mx-4 px-4 border-b border-border/40 mb-5 lg:border-none lg:pb-0 lg:mb-0 lg:sticky-none lg:static lg:bg-transparent lg:backdrop-blur-none lg:mx-0 lg:px-0">
-
-              <div className="flex gap-2 items-center">
-                {/* Search */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  <input
-                    ref={searchRef}
-                    type="search"
-                    placeholder="Search quizzes…"
-                    value={searchRaw}
-                    onChange={e => setSearchRaw(e.target.value)}
-                    className="w-full h-11 pl-9 pr-9 rounded-xl border border-border/60 bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
-                  />
-                  {searchRaw && (
-                    <button
-                      onClick={() => setSearchRaw("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Sort dropdown (desktop) */}
-                <div className="hidden sm:block">
-                  <SortDropdown sortBy={sortBy} onSort={setSortBy} label={activeSortLabel} />
-                </div>
-
-                {/* Mobile: Filter + Sort drawer */}
-                <div className="flex gap-2 lg:hidden">
-                  <Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
-                    <DrawerTrigger asChild>
-                      <button className="relative h-11 px-3 rounded-xl border border-border/60 bg-background flex items-center gap-1.5 text-sm font-medium text-foreground hover:bg-muted/60 transition-colors shrink-0">
-                        <SlidersHorizontal className="h-4 w-4" />
-                        <span className="hidden sm:inline">Filters</span>
-                        {hasAnyFilter && (
-                          <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
-                            !
-                          </span>
-                        )}
-                      </button>
-                    </DrawerTrigger>
-                    <DrawerContent className="max-h-[85dvh]">
-                      <DrawerHeader className="pb-2">
-                        <DrawerTitle className="text-base">Filters &amp; Sort</DrawerTitle>
-                      </DrawerHeader>
-                      <div className="px-4 pb-6 overflow-y-auto space-y-5">
-                        {/* Sort */}
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sort by</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {sortOptions.map(opt => (
-                              <button
-                                key={opt.value}
-                                onClick={() => { setSortBy(opt.value); setFilterDrawerOpen(false) }}
-                                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                                  sortBy === opt.value
-                                    ? "border-primary bg-primary/10 text-primary"
-                                    : "border-border/60 text-muted-foreground hover:bg-muted/60"
-                                }`}
-                              >
-                                <span>{opt.icon}</span>
-                                <span className="truncate">{opt.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Category */}
-                        {categories.length > 2 && (
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subject</p>
-                            <div className="flex flex-wrap gap-2">
-                              {categories.map(cat => {
-                                const cfg = categoryConfig[cat] || defaultCfg
-                                const isActive = selectedCategory === cat
-                                return (
-                                  <button
-                                    key={cat}
-                                    onClick={() => { setSelectedCategory(cat); setStructureFilter({ folderId: null, categoryId: null, sectionId: null }); setFilterDrawerOpen(false) }}
-                                    className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                                    style={isActive ? {
-                                      backgroundColor: cat === "All" ? "hsl(var(--primary))" : cfg.color,
-                                      color: "#fff",
-                                      borderColor: "transparent"
-                                    } : {
-                                      backgroundColor: cat === "All" ? "transparent" : cfg.bg,
-                                      color: cat === "All" ? "hsl(var(--muted-foreground))" : cfg.color,
-                                      borderColor: cat === "All" ? "hsl(var(--border))" : `${cfg.color}40`
-                                    }}
-                                  >
-                                    {cat}
-                                    {cat !== "All" && (
-                                      <span className="ml-1 opacity-75">
-                                        ({quizzes.filter(q => q.category === cat).length})
-                                      </span>
-                                    )}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Content Structure */}
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Content Structure</p>
-                          <ContentStructureNav
-                            filter={structureFilter}
-                            onFilterChange={(f) => {
-                              setStructureFilter(f)
-                              setSelectedCategory("All")
-                              setSearchRaw("")
-                              setFilterDrawerOpen(false)
-                            }}
-                            showType="quizzes"
-                            autoRefreshMs={120_000}
-                          />
-                        </div>
-
-                        {hasAnyFilter && (
-                          <button
-                            onClick={() => { clearAll(); setFilterDrawerOpen(false) }}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/5 transition-colors"
-                          >
-                            <X className="h-4 w-4" /> Clear All Filters
-                          </button>
-                        )}
-                      </div>
-                    </DrawerContent>
-                  </Drawer>
-
-                  {/* Sort shortcut (mobile only, if small screen) */}
-                  <div className="sm:hidden">
-                    <SortDropdown sortBy={sortBy} onSort={setSortBy} label="" compact />
-                  </div>
-                </div>
+            <div className="flex gap-2 items-center">
+              {/* Search */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  placeholder="Search quizzes…"
+                  value={searchRaw}
+                  onChange={e => setSearchRaw(e.target.value)}
+                  className="w-full h-11 pl-9 pr-9 rounded-xl border border-border/60 bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+                />
+                {searchRaw && (
+                  <button
+                    onClick={() => setSearchRaw("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
-              {/* Category chips (desktop + tablet only) */}
-              {!loading && categories.length > 2 && !hasStructureFilter && (
-                <div className="hidden sm:flex gap-2 mt-3 overflow-x-auto no-scrollbar">
-                  {categories.map(cat => {
-                    const cfg = categoryConfig[cat] || defaultCfg
-                    const isActive = selectedCategory === cat
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 whitespace-nowrap"
-                        style={isActive ? {
-                          backgroundColor: cat === "All" ? "hsl(var(--primary))" : cfg.color,
-                          color: "#fff",
-                          borderColor: "transparent",
-                          boxShadow: `0 2px 8px ${cat === "All" ? "hsl(var(--primary))" : cfg.color}44`
-                        } : {
-                          backgroundColor: cat === "All" ? "transparent" : cfg.bg,
-                          color: cat === "All" ? "hsl(var(--muted-foreground))" : cfg.color,
-                          borderColor: cat === "All" ? "hsl(var(--border))" : `${cfg.color}40`
+              {/* Sort dropdown */}
+              <div className="hidden sm:block">
+                <SortDropdown sortBy={sortBy} onSort={setSortBy} label={activeSortLabel} />
+              </div>
+
+              {/* Filters drawer (all screen sizes) */}
+              <Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
+                <DrawerTrigger asChild>
+                  <button className="relative h-11 px-3 sm:px-4 rounded-xl border border-border/60 bg-background flex items-center gap-1.5 sm:gap-2 text-sm font-medium text-foreground hover:bg-muted/60 transition-colors shrink-0">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span className="hidden sm:inline">Filters</span>
+                    {hasAnyFilter && (
+                      <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+                        !
+                      </span>
+                    )}
+                  </button>
+                </DrawerTrigger>
+                <DrawerContent className="max-h-[85dvh]">
+                  <DrawerHeader className="pb-2">
+                    <DrawerTitle className="text-base">Filters &amp; Sort</DrawerTitle>
+                  </DrawerHeader>
+                  <div className="px-4 pb-6 overflow-y-auto space-y-5">
+                    {/* Sort */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sort by</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {sortOptions.map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => { setSortBy(opt.value); setFilterDrawerOpen(false) }}
+                            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                              sortBy === opt.value
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border/60 text-muted-foreground hover:bg-muted/60"
+                            }`}
+                          >
+                            <span>{opt.icon}</span>
+                            <span className="truncate">{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Category */}
+                    {categories.length > 2 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subject</p>
+                        <div className="flex flex-wrap gap-2">
+                          {categories.map(cat => {
+                            const cfg = categoryConfig[cat] || defaultCfg
+                            const isActive = selectedCategory === cat
+                            return (
+                              <button
+                                key={cat}
+                                onClick={() => { setSelectedCategory(cat); setStructureFilter({ folderId: null, categoryId: null, sectionId: null }); setFilterDrawerOpen(false) }}
+                                className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+                                style={isActive ? {
+                                  backgroundColor: cat === "All" ? "hsl(var(--primary))" : cfg.color,
+                                  color: "#fff",
+                                  borderColor: "transparent"
+                                } : {
+                                  backgroundColor: cat === "All" ? "transparent" : cfg.bg,
+                                  color: cat === "All" ? "hsl(var(--muted-foreground))" : cfg.color,
+                                  borderColor: cat === "All" ? "hsl(var(--border))" : `${cfg.color}40`
+                                }}
+                              >
+                                {cat}
+                                {cat !== "All" && (
+                                  <span className="ml-1 opacity-75">
+                                    ({quizzes.filter(q => q.category === cat).length})
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Content Structure */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Content Structure</p>
+                      <ContentStructureNav
+                        filter={structureFilter}
+                        onFilterChange={(f) => {
+                          setStructureFilter(f)
+                          setSelectedCategory("All")
+                          setSearchRaw("")
+                          setFilterDrawerOpen(false)
                         }}
+                        showType="quizzes"
+                        autoRefreshMs={120_000}
+                      />
+                    </div>
+
+                    {hasAnyFilter && (
+                      <button
+                        onClick={() => { clearAll(); setFilterDrawerOpen(false) }}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/5 transition-colors"
                       >
-                        {cat}
-                        {cat !== "All" && (
-                          <span className="ml-1 opacity-70">
-                            ({quizzes.filter(q => q.category === cat).length})
-                          </span>
-                        )}
+                        <X className="h-4 w-4" /> Clear All Filters
                       </button>
-                    )
-                  })}
-                </div>
-              )}
+                    )}
+                  </div>
+                </DrawerContent>
+              </Drawer>
+
+              {/* Sort shortcut on small screens */}
+              <div className="sm:hidden">
+                <SortDropdown sortBy={sortBy} onSort={setSortBy} label="" compact />
+              </div>
             </div>
+
+            {/* Category chips (all sizes when no structure filter) */}
+            {!loading && categories.length > 2 && !hasStructureFilter && (
+              <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                {categories.map(cat => {
+                  const cfg = categoryConfig[cat] || defaultCfg
+                  const isActive = selectedCategory === cat
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 whitespace-nowrap"
+                      style={isActive ? {
+                        backgroundColor: cat === "All" ? "hsl(var(--primary))" : cfg.color,
+                        color: "#fff",
+                        borderColor: "transparent",
+                        boxShadow: `0 2px 8px ${cat === "All" ? "hsl(var(--primary))" : cfg.color}44`
+                      } : {
+                        backgroundColor: cat === "All" ? "transparent" : cfg.bg,
+                        color: cat === "All" ? "hsl(var(--muted-foreground))" : cfg.color,
+                        borderColor: cat === "All" ? "hsl(var(--border))" : `${cfg.color}40`
+                      }}
+                    >
+                      {cat}
+                      {cat !== "All" && (
+                        <span className="ml-1 opacity-70">
+                          ({quizzes.filter(q => q.category === cat).length})
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Single column content area ── */}
+          <div className="w-full">
 
             {/* ── Active filter indicator ── */}
             {!loading && hasAnyFilter && (
-              <div className="flex items-center gap-2 mb-4 mt-5 lg:mt-3 flex-wrap">
+              <div className="flex items-center gap-2 mb-3 mt-4 flex-wrap">
                 <span className="text-xs text-muted-foreground">
                   <span className="font-semibold text-foreground">{filtered.length}</span> quiz{filtered.length !== 1 ? "zes" : ""} found
                 </span>
@@ -444,7 +428,7 @@ export default function QuizzesPage() {
             )}
 
             {!loading && !hasAnyFilter && quizzes.length > 0 && (
-              <p className="text-xs text-muted-foreground mb-4 mt-5 lg:mt-3">
+              <p className="text-xs text-muted-foreground mb-3 mt-4">
                 Showing <span className="font-semibold text-foreground">{Math.min(visibleCount, filtered.length)}</span> of{" "}
                 <span className="font-semibold text-foreground">{quizzes.length}</span> quizzes
               </p>
@@ -452,7 +436,7 @@ export default function QuizzesPage() {
 
             {/* ── Loading Skeleton ── */}
             {loading && (
-              <div className="mt-5 lg:mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="rounded-2xl border border-border/50 bg-card p-5 animate-pulse space-y-3">
                     <div className="flex items-start justify-between gap-2">
@@ -509,7 +493,7 @@ export default function QuizzesPage() {
 
             {/* ── Quiz Grid ── */}
             {!loading && visible.length > 0 && (
-              <div className="mt-5 lg:mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {visible.map((quiz, i) => {
                   const cfg = categoryConfig[quiz.category] || defaultCfg
                   const diff = difficultyConfig[quiz.difficulty?.toLowerCase()] || defaultDiff
