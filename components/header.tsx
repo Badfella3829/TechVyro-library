@@ -7,7 +7,6 @@ import { FileText, Settings, Home, ExternalLink, Search, X, Sparkles, Clock, Tre
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { AuthModal } from "@/components/auth-modal"
 import { useAuth } from "@/hooks/use-auth"
 import {
   DropdownMenu,
@@ -44,7 +43,6 @@ interface LiveResult {
 export function Header() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
-  const [showAuthModal, setShowAuthModal] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isScrolled, setIsScrolled] = useState(false)
@@ -432,11 +430,13 @@ export function Header() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowAuthModal(true)}
+                asChild
                 className="px-2.5 sm:px-3.5 gap-1.5 sm:gap-2 border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all duration-300"
               >
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">Login</span>
+                <Link href="/login">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">Login</span>
+                </Link>
               </Button>
             )
           )}
@@ -449,9 +449,6 @@ export function Header() {
           </Button>
         </nav>
       </div>
-
-      {/* Auth Modal */}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
       {/* Mobile Search Overlay */}
       {searchOpen && (
