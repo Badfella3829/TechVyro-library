@@ -39,8 +39,13 @@ function LoginPageContent() {
     })
   }, [])
 
-  const getRedirectURL = () =>
-    typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : ""
+  const getRedirectURL = () => {
+    if (typeof window === "undefined") return ""
+    const origin = window.location.origin
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    const base = (origin.includes("localhost") && siteUrl) ? siteUrl : origin
+    return `${base}/auth/callback`
+  }
 
   const switchMode = (m: Mode) => {
     setMode(m)

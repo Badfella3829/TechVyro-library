@@ -8,6 +8,13 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code")
   const next = searchParams.get("next") ?? "/"
 
+  const forwardedHost = request.headers.get("x-forwarded-host")
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  const publicOrigin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : (siteUrl && origin.includes("localhost") ? siteUrl : origin)
+
   if (code) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -29,9 +36,9 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${publicOrigin}${next}`)
     }
   }
 
-  return NextResponse.redirect(`${origin}/?error=auth`)
+  return NextResponse.redirect(`${publicOrigin}/?error=auth`)
 }
