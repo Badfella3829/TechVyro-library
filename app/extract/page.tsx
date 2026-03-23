@@ -12,7 +12,6 @@ import {
   Search, Loader2, BookOpen, ChevronRight,
   AlertCircle, Zap, GraduationCap, FileText, Clock, X
 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
 
 interface TestSeries {
   id?: string | number
@@ -32,25 +31,24 @@ interface SearchResult {
   webBase: string
 }
 
-// Featured popular platforms (name must match appx.json names)
+// Featured popular platforms: search tries appx.json first, sampleCategory is fallback
 const FEATURED = [
-  { label: "CareerWill", search: "Careerwill" },
-  { label: "Physics Wallah", search: "Physicswallah" },
-  { label: "ExamPur", search: "Exampur" },
-  { label: "Adda247", search: "Adda247" },
-  { label: "Dron Study", search: "Dronstudy" },
-  { label: "Vivek Sir", search: "Vivek" },
-  { label: "StudyIQ", search: "Studyiq" },
-  { label: "Mahendras", search: "Mahendra" },
-  { label: "Khan GS", search: "Khangssresearch" },
-  { label: "Padhle IAS", search: "Padhleias" },
-  { label: "Unacademy", search: "Unacademy" },
-  { label: "Testbook", search: "Testbook" },
+  { label: "CareerWill", search: "Careerwill", sampleCategory: "nda" },
+  { label: "Physics Wallah", search: "Physicswallah", sampleCategory: "jee-neet" },
+  { label: "ExamPur", search: "Exampur", sampleCategory: "ssc-banking" },
+  { label: "Adda247", search: "Adda247", sampleCategory: "ssc-banking" },
+  { label: "Dron Study", search: "Dronstudy", sampleCategory: "jee-neet" },
+  { label: "Vivek Sir", search: "Vivek", sampleCategory: "ssc-banking" },
+  { label: "StudyIQ", search: "Studyiq", sampleCategory: "upsc" },
+  { label: "Mahendras", search: "Mahendra", sampleCategory: "ssc-banking" },
+  { label: "Khan GS", search: "Khangs", sampleCategory: "ssc-banking" },
+  { label: "Padhle IAS", search: "Padhle", sampleCategory: "upsc" },
+  { label: "Unacademy", search: "Unacademy", sampleCategory: "ssc-banking" },
+  { label: "Testbook", search: "Testbook", sampleCategory: "ssc-banking" },
 ]
 
 export default function ExtractPage() {
   const router = useRouter()
-  const { user } = useAuth()
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -64,7 +62,7 @@ export default function ExtractPage() {
   const [searched, setSearched] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
-  const debounceRef = useRef<NodeJS.Timeout>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -134,15 +132,25 @@ export default function ExtractPage() {
     }
   }
 
-  const handleFeatured = async (search: string) => {
-    setQuery(search)
-    const res = await fetch(`/api/extract/search?q=${encodeURIComponent(search)}`)
-    const data = await res.json()
-    const first = data.results?.[0]
-    if (first) {
-      doExtract(first)
-    } else {
-      setError(`Could not find platform: ${search}`)
+  const handleFeatured = async (label: string, search: string, sampleCategory: string) => {
+    setQuery(label)
+    setError("")
+    try {
+      const res = await fetch(`/api/extract/search?q=${encodeURIComponent(search)}`)
+      const data = await res.json()
+      const first = data.results?.[0]
+      if (first) {
+        doExtract(first)
+      } else {
+        // Not in classx.co.in — load sample tests for the category
+        doExtract({
+          name: label,
+          api: `sample:${sampleCategory}`,
+          webBase: `https://${search.toLowerCase()}.classx.co.in`,
+        })
+      }
+    } catch {
+      setError("Network error. Please try again.")
     }
   }
 
@@ -364,7 +372,7 @@ export default function ExtractPage() {
               {FEATURED.map(f => (
                 <button
                   key={f.label}
-                  onClick={() => handleFeatured(f.search)}
+                  onClick={() => handleFeatured(f.label, f.search, f.sampleCategory)}
                   disabled={loading}
                   className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-violet-400 hover:bg-violet-500/5 transition-all text-left group"
                 >

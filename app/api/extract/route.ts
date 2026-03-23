@@ -79,6 +79,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "url or apiUrl required" }, { status: 400 })
   }
 
+  // Shortcut: if apiUrl starts with "sample:" return sample tests immediately
+  if (directApiUrl?.startsWith("sample:")) {
+    const category = directApiUrl.replace("sample:", "")
+    const sampleSeries = getSampleSeriesForCategory(category)
+    const fallback = sampleSeries.length > 0 ? sampleSeries : getAllSampleSeries().slice(0, 3)
+    const testSeries = fallback.map(s => ({
+      id: s.id, title: s.title, slug: s.slug,
+      description: s.description, total_tests: s.tests.length, isSample: true,
+    }))
+    return NextResponse.json({
+      success: true, testSeries, source: "sample",
+      apiBase: directApiUrl, webBase: inputUrl || "",
+      notice: "Showing sample practice tests for this platform.",
+    })
+  }
+
   // Determine the API and web base URLs
   let apiUrl: string
   let webUrl: string
