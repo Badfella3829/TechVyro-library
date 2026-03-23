@@ -118,12 +118,21 @@ export default function QuizPage() {
     explanation: q.explanation
   }))
 
+  // Extract user's display name: full_name → name → email prefix
+  const userName = user
+    ? (user.user_metadata?.full_name as string | undefined)
+      || (user.user_metadata?.name as string | undefined)
+      || user.email?.split("@")[0]
+      || ""
+    : ""
+
   return (
     <QuizPlayer
       title={quiz.title}
       quizId={quiz.id}
       questions={transformedQuestions}
       timeLimit={quiz.time_limit}
+      userName={userName}
     />
   )
 }

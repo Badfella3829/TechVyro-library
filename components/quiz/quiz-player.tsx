@@ -28,6 +28,7 @@ interface QuizPlayerProps {
   questions: Question[]
   timeLimit: number
   onComplete?: (result: QuizResult) => void
+  userName?: string
 }
 
 const LEADERBOARD_KEY = "techvyro-leaderboard" // kept for theme only
@@ -56,7 +57,7 @@ interface QuizResult {
   questionTimes: number[]
 }
 
-export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: QuizPlayerProps) {
+export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, userName }: QuizPlayerProps) {
   const [started, setStarted] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
@@ -69,13 +70,21 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
   const [darkMode, setDarkMode] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [showExitWarning, setShowExitWarning] = useState(false)
-  const [playerName, setPlayerName] = useState("")
-  const [nameEntered, setNameEntered] = useState(false)
+  const [playerName, setPlayerName] = useState(userName || "")
+  const [nameEntered, setNameEntered] = useState(!!(userName && userName.trim()))
   const [savedToLeaderboard, setSavedToLeaderboard] = useState(false)
   const [topLeaderboard, setTopLeaderboard] = useState<LeaderboardEntry[]>([])
   
   const questionStartRef = useRef<number>(Date.now())
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Sync userName prop → auto-fill name if it arrives after mount
+  useEffect(() => {
+    if (userName && userName.trim() && !nameEntered) {
+      setPlayerName(userName.trim())
+      setNameEntered(true)
+    }
+  }, [userName]) // eslint-disable-line
 
   // Initialize arrays when questions change
   useEffect(() => {
@@ -562,11 +571,22 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete }: 
               </div>
             ) : (
               <>
-                {/* Welcome pill */}
-                <div className={`inline-flex items-center justify-center gap-2 mb-5 px-4 py-2 rounded-full text-sm ${darkMode ? "bg-green-900/40 text-green-400 border border-green-800" : "bg-green-50 text-green-700 border border-green-200"}`}>
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="font-semibold">Welcome, {playerName}!</span>
-                  <button onClick={() => setNameEntered(false)} className="text-xs opacity-60 hover:opacity-100 underline transition-opacity">Edit</button>
+                {/* Profile card */}
+                <div className={`flex items-center gap-3 p-4 rounded-2xl mb-5 text-left ${darkMode ? "bg-gray-700/60 border border-gray-600" : "bg-primary/5 border border-primary/15"}`}>
+                  {/* Avatar */}
+                  <div className="h-11 w-11 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 text-white font-extrabold text-lg shadow-md">
+                    {playerName.trim().charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className={`font-bold text-sm truncate ${darkMode ? "text-white" : "text-foreground"}`}>{playerName}</p>
+                    <p className="text-[11px] text-muted-foreground">Playing as this name on leaderboard</p>
+                  </div>
+                  <button
+                    onClick={() => setNameEntered(false)}
+                    className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${darkMode ? "border-gray-500 text-gray-300 hover:bg-gray-600" : "border-border text-muted-foreground hover:bg-muted"}`}
+                  >
+                    Edit
+                  </button>
                 </div>
 
                 {/* Quick info chips */}
