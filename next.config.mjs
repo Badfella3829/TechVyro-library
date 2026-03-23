@@ -11,6 +11,43 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "500mb",
     },
+    optimizePackageImports: ["lucide-react"],
+  },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: "all",
+          maxSize: 200000,
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            framework: {
+              chunks: "all",
+              name: "framework",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+              priority: 40,
+              enforce: true,
+            },
+            lib: {
+              test: /[\\/]node_modules[\\/]/,
+              name(module) {
+                const name = module.context
+                  ?.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)?.[1]
+                  ?.replace("@", "")
+                  .replace("/", "-")
+                return `npm.${name}`
+              },
+              priority: 30,
+              minChunks: 1,
+              reuseExistingChunk: true,
+            },
+          },
+        },
+      }
+    }
+    return config
   },
   async headers() {
     return [
@@ -23,6 +60,12 @@ const nextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
+        source: "/_next/static/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
       {
