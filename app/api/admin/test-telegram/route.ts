@@ -4,10 +4,17 @@ import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin"
 export async function GET() {
   const result: Record<string, unknown> = {}
 
+  // Show which Vercel project is actually serving this request
+  result.vercel_url = process.env.VERCEL_URL || "not set"
+  result.vercel_project_id = process.env.VERCEL_PROJECT_ID || "not set"
+  result.vercel_project_name = process.env.VERCEL_PROJECT_NAME_USERSPACE || "not set"
+  result.node_env = process.env.NODE_ENV
+
   // Show all env var NAMES that contain "TELEGRAM" (safe — no values shown)
   const allKeys = Object.keys(process.env)
   result.env_keys_with_telegram = allKeys.filter(k => k.toUpperCase().includes("TELEGRAM"))
   result.env_keys_with_bot = allKeys.filter(k => k.toUpperCase().includes("BOT"))
+  result.total_env_keys = allKeys.length
 
   // 1. Check token — try multiple possible names
   const token =
