@@ -581,12 +581,6 @@ export function QuizPlayer({ title, quizId, questions, timeLimit, onComplete, us
                     <p className={`font-bold text-sm truncate ${darkMode ? "text-white" : "text-foreground"}`}>{playerName}</p>
                     <p className="text-[11px] text-muted-foreground">Playing as this name on leaderboard</p>
                   </div>
-                  <button
-                    onClick={() => setNameEntered(false)}
-                    className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${darkMode ? "border-gray-500 text-gray-300 hover:bg-gray-600" : "border-border text-muted-foreground hover:bg-muted"}`}
-                  >
-                    Edit
-                  </button>
                 </div>
 
                 {/* Quick info chips */}
