@@ -15,7 +15,9 @@ export async function GET() {
       .eq("key", "folders")
       .single()
 
-    return NextResponse.json({ folders: data?.value ?? [] })
+    const res = NextResponse.json({ folders: data?.value ?? [] })
+    res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120")
+    return res
   } catch {
     return NextResponse.json({ folders: [] })
   }

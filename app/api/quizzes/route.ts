@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server"
-import { verifyAdminToken, extractToken } from "@/lib/admin-auth"
-import { createClient } from "@/lib/supabase/server"
+import { verifyAdminToken } from "@/lib/admin-auth"
 import { createAdminClient } from "@/lib/supabase/admin"
-
+import { getQuizList, invalidateQuizCache } from "@/lib/quiz-cache"
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 })
-
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("id, title, description, category, time_limit, questions, enabled, created_at, tags, visibility, section, difficulty, structure_location")
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("[quiz-api] GET quizzes error:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    return NextResponse.json({ quizzes: data || [] })
+    const quizzes = await getQuizList()
+    const response = NextResponse.json({ quizzes })
+    response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120")
+    return response
   } catch (err) {
     console.error("[quiz-api] GET quizzes exception:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -56,6 +46,7 @@ export async function POST(request: Request) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    invalidateQuizCache()
     return NextResponse.json({ quiz: data })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { verifyAdminToken, extractToken } from "@/lib/admin-auth"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { invalidateQuizCache } from "@/lib/quiz-cache"
 
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -55,6 +56,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    invalidateQuizCache()
     return NextResponse.json({ quiz: data })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -72,6 +74,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const supabase = createAdminClient()
     const { error } = await supabase.from("quizzes").delete().eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    invalidateQuizCache()
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

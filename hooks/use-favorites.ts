@@ -1,34 +1,54 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
+
+let cachedFavorites: string[] | null = null
+let isLoaded = false
+let pendingPromise: Promise<string[]> | null = null
+const listeners = new Set<() => void>()
+
+function notify() {
+  listeners.forEach(fn => fn())
+}
+
+async function loadFavorites(): Promise<string[]> {
+  if (isLoaded && cachedFavorites !== null) return cachedFavorites
+  if (pendingPromise) return pendingPromise
+
+  pendingPromise = fetch("/api/favorites")
+    .then(r => r.json())
+    .then(data => {
+      cachedFavorites = Array.isArray(data.favorites) ? data.favorites : []
+      isLoaded = true
+      pendingPromise = null
+      notify()
+      return cachedFavorites!
+    })
+    .catch(() => {
+      pendingPromise = null
+      isLoaded = true
+      cachedFavorites = cachedFavorites ?? []
+      return cachedFavorites
+    })
+
+  return pendingPromise
+}
 
 export function useFavorites() {
-  const [favorites, setFavorites] = useState<Set<string>>(new Set())
-  const [isLoaded, setIsLoaded] = useState(false)
-  const pendingRef = useRef<Set<string>>(new Set())
+  const [, forceUpdate] = useState(0)
 
   useEffect(() => {
-    fetch("/api/favorites")
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data.favorites)) {
-          setFavorites(new Set(data.favorites))
-        }
-      })
-      .catch(() => {})
-      .finally(() => setIsLoaded(true))
+    const rerender = () => forceUpdate(n => n + 1)
+    listeners.add(rerender)
+    loadFavorites()
+    return () => { listeners.delete(rerender) }
   }, [])
 
   const toggleFavorite = useCallback(async (id: string) => {
-    if (pendingRef.current.has(id)) return
-    pendingRef.current.add(id)
-
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    const prev = cachedFavorites ?? []
+    const next = prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    cachedFavorites = next
+    notify()
 
     try {
       await fetch("/api/favorites", {
@@ -37,30 +57,26 @@ export function useFavorites() {
         body: JSON.stringify({ pdfId: id }),
       })
     } catch {
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) next.delete(id)
-        else next.add(id)
-        return next
-      })
-    } finally {
-      pendingRef.current.delete(id)
+      cachedFavorites = prev
+      notify()
     }
   }, [])
 
   const addFavorite = useCallback((id: string) => {
-    setFavorites(prev => new Set([...prev, id]))
+    if (!cachedFavorites?.includes(id)) {
+      cachedFavorites = [...(cachedFavorites ?? []), id]
+      notify()
+    }
   }, [])
 
   const removeFavorite = useCallback((id: string) => {
-    setFavorites(prev => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
-    })
+    cachedFavorites = (cachedFavorites ?? []).filter(f => f !== id)
+    notify()
   }, [])
 
-  const isFavorite = useCallback((id: string) => favorites.has(id), [favorites])
+  const isFavorite = useCallback((id: string) => (cachedFavorites ?? []).includes(id), [])
 
-  return { favorites: [...favorites], isLoaded, addFavorite, removeFavorite, toggleFavorite, isFavorite }
+  const favorites = cachedFavorites ?? []
+
+  return { favorites, isLoaded, addFavorite, removeFavorite, toggleFavorite, isFavorite }
 }

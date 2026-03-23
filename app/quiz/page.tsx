@@ -79,7 +79,7 @@ export default function QuizzesPage() {
   const fetchQuizzes = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true)
     try {
-      const res = await fetch("/api/quizzes", { cache: "no-store" })
+      const res = await fetch("/api/quizzes")
       const data = await res.json()
       const all: Quiz[] = data.quizzes || []
       setQuizzes(all.filter(q => q.enabled && q.questions.length > 0))
