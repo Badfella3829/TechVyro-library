@@ -614,18 +614,18 @@ export function Header() {
                   </div>
                   <div className="p-1">
                     <DropdownMenuItem asChild>
-                      <Link href="/" className="gap-2 cursor-pointer rounded-lg">
-                        <Home className="h-4 w-4 text-muted-foreground" />Home
+                      <Link href="/profile" className="gap-2 cursor-pointer rounded-lg">
+                        <User className="h-4 w-4 text-primary" />My Profile
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/quiz" className="gap-2 cursor-pointer rounded-lg">
-                        <Trophy className="h-4 w-4 text-amber-500" />Quiz History
+                        <Trophy className="h-4 w-4 text-amber-500" />Quiz Portal
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/about" className="gap-2 cursor-pointer rounded-lg">
-                        <Info className="h-4 w-4 text-blue-500" />About
+                      <Link href="/" className="gap-2 cursor-pointer rounded-lg">
+                        <Home className="h-4 w-4 text-muted-foreground" />Home
                       </Link>
                     </DropdownMenuItem>
                   </div>
