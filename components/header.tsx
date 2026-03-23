@@ -521,6 +521,7 @@ export function Header() {
                   <div className="space-y-0.5">
                     {[
                       { href: "/quiz", icon: Trophy, label: "Quiz Portal", desc: "Test your knowledge", color: "text-amber-500", bg: "bg-amber-500/10" },
+                      { href: "/extract", icon: Zap, label: "Test Extractor", desc: "Extract tests from any AppX site", color: "text-violet-500", bg: "bg-violet-500/10" },
                       { href: "/about", icon: Info, label: "About Us", desc: "Learn about TechVyro", color: "text-blue-500", bg: "bg-blue-500/10" },
                     ].map(item => (
                       <Link
@@ -723,6 +724,7 @@ export function Header() {
               { href: "/", icon: Home, label: "Home", color: "text-primary" },
               { href: "/#content", icon: BookOpen, label: "All PDFs", color: "text-blue-500" },
               { href: "/quiz", icon: Trophy, label: "Quiz Portal", color: "text-amber-500" },
+              { href: "/extract", icon: Zap, label: "Test Extractor", color: "text-violet-500" },
               { href: "/about", icon: Info, label: "About Us", color: "text-emerald-500" },
             ].map(item => (
               <Link

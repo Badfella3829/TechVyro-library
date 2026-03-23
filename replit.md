@@ -1,6 +1,25 @@
 # TechVyro PDF Library
 
-A Next.js 16 PDF library and quiz platform with admin dashboard, user accounts, and smart student features. Hosted on Replit with Supabase backend.
+A Next.js 15 PDF library and quiz platform with admin dashboard, user accounts, AppX test extractor, and smart student features. Hosted on Replit with Supabase backend.
+
+## AppX Test Extractor (New Major Feature)
+Full integration of test-series extraction from AppX-based educational websites:
+- **`/extract`** — Main extractor page: user inputs any AppX website URL, gets list of test series
+- **`/extract/series`** — Shows subjects + individual tests for a selected series (with credits gating)
+- **`/extract/play`** — Plays extracted test using the existing `QuizPlayer` component (timer, scoring, explanations)
+- **`/api/extract/route.ts`** — Scrapes test series list via AppX API + `__NEXT_DATA__` fallback
+- **`/api/extract/tests/route.ts`** — Fetches subjects + tests for a specific series slug
+- **`/api/extract/questions/route.ts`** — Fetches & normalizes questions into QuizPlayer format
+- **`/api/credits/route.ts`** — Credits management (GET: fetch, POST: use/referral)
+- **`scripts/008_add_credits_referral.sql`** — Supabase table for credits + referral system
+
+### Credits & Referral System
+- New users get 10 free credits automatically
+- Each test extraction costs 1 credit
+- Premium users have unlimited extractions
+- Referral codes: share your code, both parties get +5 credits
+- Credits shown in user profile page with referral code copy + apply UI
+- Header "Resources" dropdown + mobile nav include "Test Extractor" link
 
 ## Student Features (v2)
 - **User Accounts**: Supabase Auth (email/password) — Login/Signup modal in header (`components/auth-modal.tsx`, `hooks/use-auth.ts`)

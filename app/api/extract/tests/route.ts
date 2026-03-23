@@ -1,0 +1,130 @@
+import { NextResponse } from "next/server"
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 15000) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal })
+    clearTimeout(id)
+    return res
+  } catch (e) {
+    clearTimeout(id)
+    throw e
+  }
+}
+
+function extractNextData(html: string): Record<string, unknown> | null {
+  try {
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/)
+    if (!match) return null
+    return JSON.parse(match[1])
+  } catch {
+    return null
+  }
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const slug = searchParams.get("slug")
+  const apiBase = searchParams.get("apiBase")
+  const webBase = searchParams.get("webBase")
+
+  if (!slug || !apiBase || !webBase) {
+    return NextResponse.json({ error: "slug, apiBase, webBase required" }, { status: 400 })
+  }
+
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    Accept: "application/json, text/html, */*",
+  }
+
+  // Try API
+  const apiEndpoints = [
+    `${apiBase}/api/v1/test-series/${slug}/?format=json`,
+    `${apiBase}/api/v1/test-series/${slug}/`,
+    `${webBase}/api/v1/test-series/${slug}/?format=json`,
+  ]
+
+  for (const endpoint of apiEndpoints) {
+    try {
+      const res = await fetchWithTimeout(endpoint, { headers }, 10000)
+      if (res.ok) {
+        const json = await res.json()
+        const subjects = findSubjects(json)
+        const tests = findTests(json)
+        if (subjects.length > 0 || tests.length > 0) {
+          return NextResponse.json({ success: true, subjects, tests, source: "api" })
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback: scrape __NEXT_DATA__
+  try {
+    const url = `${webBase.replace(/\/$/, "")}/test-series/${slug}/`
+    const res = await fetchWithTimeout(url, { headers }, 15000)
+    if (res.ok) {
+      const html = await res.text()
+      const nextData = extractNextData(html)
+      if (nextData) {
+        const props = (nextData as Record<string, unknown>)?.props
+        const pageProps = (props as Record<string, unknown>)?.pageProps as Record<string, unknown>
+        const subjects: unknown[] = (pageProps?.subjects as unknown[]) || []
+        const testsObj = pageProps?.tests || {}
+
+        const flatTests: unknown[] = []
+        if (typeof testsObj === "object" && testsObj !== null) {
+          for (const arr of Object.values(testsObj)) {
+            if (Array.isArray(arr)) flatTests.push(...arr)
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          subjects,
+          tests: flatTests,
+          testSeries: pageProps?.testSeries,
+          source: "scrape",
+        })
+      }
+    }
+  } catch {}
+
+  return NextResponse.json({ error: "Could not fetch test details" }, { status: 404 })
+}
+
+function findSubjects(data: unknown): unknown[] {
+  if (!data || typeof data !== "object") return []
+  for (const key of ["subjects", "sections"]) {
+    const val = (data as Record<string, unknown>)[key]
+    if (Array.isArray(val)) return val
+  }
+  for (const val of Object.values(data as object)) {
+    const found = findSubjects(val)
+    if (found.length) return found
+  }
+  return []
+}
+
+function findTests(data: unknown): unknown[] {
+  if (!data || typeof data !== "object") return []
+  const obj = data as Record<string, unknown>
+
+  if ("tests" in obj) {
+    const t = obj["tests"]
+    if (Array.isArray(t)) return t
+    if (typeof t === "object" && t !== null) {
+      const flat: unknown[] = []
+      for (const arr of Object.values(t)) {
+        if (Array.isArray(arr)) flat.push(...arr)
+      }
+      if (flat.length) return flat
+    }
+  }
+
+  for (const val of Object.values(obj)) {
+    const found = findTests(val)
+    if (found.length) return found
+  }
+  return []
+}

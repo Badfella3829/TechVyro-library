@@ -94,6 +94,45 @@ export default function ProfilePage() {
   const [nameMsg, setNameMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [recentItems, setRecentItems] = useState<RecentlyViewedItem[]>([])
 
+  // Credits state
+  const [credits, setCredits] = useState<{ credits: number; is_premium: boolean; referral_code: string; referred_by?: string } | null>(null)
+  const [referralInput, setReferralInput] = useState("")
+  const [referralMsg, setReferralMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [applyingReferral, setApplyingReferral] = useState(false)
+
+  const fetchCredits = useCallback(async () => {
+    try {
+      const res = await fetch("/api/credits")
+      const data = await res.json()
+      if (data.credits) setCredits(data.credits)
+    } catch {}
+  }, [])
+
+  const applyReferral = async () => {
+    if (!referralInput.trim()) return
+    setApplyingReferral(true)
+    setReferralMsg(null)
+    try {
+      const res = await fetch("/api/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "referral", code: referralInput.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setReferralMsg({ type: "error", text: data.error || "Invalid code" })
+      } else {
+        setReferralMsg({ type: "success", text: `+${data.bonusEarned} credits added! Both you and the referrer earned bonus credits.` })
+        setCredits(data.credits)
+        setReferralInput("")
+      }
+    } catch {
+      setReferralMsg({ type: "error", text: "Network error. Try again." })
+    } finally {
+      setApplyingReferral(false)
+    }
+  }
+
   const fetchProfile = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -121,9 +160,10 @@ export default function ProfilePage() {
     }
     if (!authLoading && authUser) {
       fetchProfile()
+      fetchCredits()
       setRecentItems(getRecentlyViewed())
     }
-  }, [authLoading, authUser, fetchProfile, router])
+  }, [authLoading, authUser, fetchProfile, fetchCredits, router])
 
   const handleSaveName = async () => {
     if (!newName.trim() || newName.trim() === data?.user.name) {
@@ -299,6 +339,96 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* Credits & Referral Card */}
+        {credits && (
+          <div className="rounded-2xl border border-violet-200 dark:border-violet-800/50 bg-gradient-to-br from-violet-500/5 to-blue-500/5 p-5">
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-violet-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-base">Test Extractor Credits</p>
+                  <p className="text-xs text-muted-foreground">Use credits to extract & play tests</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {credits.is_premium ? (
+                  <span className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full px-3 py-1 text-sm font-bold">
+                    ⭐ Premium — Unlimited
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 bg-violet-500/10 text-violet-600 border border-violet-500/20 rounded-full px-3 py-1 text-sm font-bold">
+                    💳 {credits.credits} Credits Left
+                  </span>
+                )}
+                <Link href="/extract">
+                  <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1.5">
+                    <Zap className="h-3.5 w-3.5" /> Extract Tests
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Referral Section */}
+            <div className="border-t border-violet-200/50 dark:border-violet-800/30 pt-4">
+              <p className="text-sm font-semibold mb-1 flex items-center gap-1.5">
+                <Award className="h-4 w-4 text-violet-600" /> Your Referral Code
+              </p>
+              <div className="flex items-center gap-2 mb-3">
+                <code className="bg-background border rounded-lg px-3 py-1.5 text-sm font-mono font-bold tracking-widest text-violet-600">
+                  {credits.referral_code}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                  onClick={() => {
+                    navigator.clipboard.writeText(credits.referral_code)
+                  }}
+                >
+                  Copy
+                </Button>
+                <span className="text-xs text-muted-foreground">Share this to earn +5 credits per referral</span>
+              </div>
+
+              {!credits.referred_by && (
+                <div>
+                  <p className="text-sm font-semibold mb-2">Have a friend's referral code?</p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={referralInput}
+                      onChange={e => setReferralInput(e.target.value.toUpperCase())}
+                      placeholder="Enter code e.g. AB12CD"
+                      className="max-w-xs h-9 text-sm font-mono uppercase"
+                      maxLength={12}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={applyReferral}
+                      disabled={applyingReferral || !referralInput.trim()}
+                      className="bg-violet-600 hover:bg-violet-700"
+                    >
+                      {applyingReferral ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Apply"}
+                    </Button>
+                  </div>
+                  {referralMsg && (
+                    <p className={`text-xs mt-1.5 ${referralMsg.type === "success" ? "text-green-600" : "text-destructive"}`}>
+                      {referralMsg.text}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {credits.referred_by && (
+                <p className="text-xs text-muted-foreground">
+                  ✅ You applied referral code <code className="font-mono">{credits.referred_by}</code>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur-sm overflow-hidden shadow-lg shadow-black/5">
