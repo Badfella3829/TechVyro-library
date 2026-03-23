@@ -180,7 +180,7 @@ CREATE INDEX IF NOT EXISTS idx_quiz_results_user_id ON quiz_results(user_id);
 -- 5. SITE SETTINGS TABLE
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS site_settings (
-  key TEXT PRIMARY KEY,
+  "key" TEXT PRIMARY KEY,
   value JSONB NOT NULL DEFAULT '{}',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
