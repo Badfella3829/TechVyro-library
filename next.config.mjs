@@ -7,12 +7,25 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Disable body size limit for large file uploads
   serverExternalPackages: [],
   experimental: {
     serverActions: {
       bodySizeLimit: "500mb",
     },
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "ALLOWALL" },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors *",
+          },
+        ],
+      },
+    ]
   },
 }
 
