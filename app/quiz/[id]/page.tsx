@@ -58,8 +58,15 @@ export default function QuizPage() {
           } else if (!q.questions || q.questions.length === 0) {
             setError("This quiz has no questions yet")
           } else {
-            setQuiz(q)
-            saveRecentlyViewed({ id: q.id, title: q.title, type: "quiz" })
+            const hasContent = q.questions.some(
+              (qs) => qs.question && qs.question.trim() !== ""
+            )
+            if (!hasContent) {
+              setError("Questions are being prepared. Please check back soon!")
+            } else {
+              setQuiz(q)
+              saveRecentlyViewed({ id: q.id, title: q.title, type: "quiz" })
+            }
           }
         })
         .catch(() => setError("Failed to load quiz"))

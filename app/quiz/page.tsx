@@ -30,6 +30,7 @@ interface Quiz {
   difficulty: string
   time_limit: number
   questions: { id: string }[]
+  hasContent: boolean
   enabled: boolean
   created_at: string
   structure_location: { folderId: string; categoryId: string; sectionId: string } | null
@@ -571,6 +572,7 @@ interface QuizCardProps {
 }
 
 function QuizCard({ quiz, cfg, diff, isNew, isLoggedIn, animIndex, onStart }: QuizCardProps) {
+  const noContent = !quiz.hasContent
   return (
     <div
       className="group relative rounded-2xl border border-border/50 bg-card overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 hover:border-transparent flex flex-col"
@@ -592,12 +594,17 @@ function QuizCard({ quiz, cfg, diff, isNew, isLoggedIn, animIndex, onStart }: Qu
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            {isNew && (
+            {noContent ? (
+              <div className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 mb-1.5">
+                <Clock className="h-2.5 w-2.5" />
+                COMING SOON
+              </div>
+            ) : isNew ? (
               <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mb-1.5">
                 <Sparkles className="h-2.5 w-2.5" />
                 NEW
               </div>
-            )}
+            ) : null}
             <h3 className="font-bold text-sm sm:text-[15px] leading-snug group-hover:text-primary transition-colors line-clamp-2">
               {quiz.title}
             </h3>
@@ -631,18 +638,25 @@ function QuizCard({ quiz, cfg, diff, isNew, isLoggedIn, animIndex, onStart }: Qu
         </div>
 
         {/* CTA */}
-        <Link
-          href={`/quiz/${quiz.id}`}
-          onClick={(e) => onStart(e, quiz.id)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-300 shadow-md group-hover:shadow-lg active:scale-[0.98]"
-          style={{ background: `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` }}
-        >
-          {isLoggedIn ? (
-            <><Play className="h-3.5 w-3.5 fill-white" /> Start Quiz</>
-          ) : (
-            <><Lock className="h-3.5 w-3.5" /> Login to Start</>
-          )}
-        </Link>
+        {noContent ? (
+          <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground bg-muted/60 border border-border/40 cursor-not-allowed select-none">
+            <Clock className="h-3.5 w-3.5" />
+            Questions Coming Soon
+          </div>
+        ) : (
+          <Link
+            href={`/quiz/${quiz.id}`}
+            onClick={(e) => onStart(e, quiz.id)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-300 shadow-md group-hover:shadow-lg active:scale-[0.98]"
+            style={{ background: `linear-gradient(135deg, ${cfg.color}, ${cfg.color}cc)` }}
+          >
+            {isLoggedIn ? (
+              <><Play className="h-3.5 w-3.5 fill-white" /> Start Quiz</>
+            ) : (
+              <><Lock className="h-3.5 w-3.5" /> Login to Start</>
+            )}
+          </Link>
+        )}
       </div>
     </div>
   )

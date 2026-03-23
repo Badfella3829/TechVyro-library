@@ -11,6 +11,7 @@ export interface QuizListItem {
   enabled: boolean
   created_at: string
   questions: { id: string }[]
+  hasContent: boolean
   structure_location: { folderId: string; categoryId: string; sectionId: string } | null
 }
 
@@ -34,21 +35,26 @@ export async function getQuizList(): Promise<QuizListItem[]> {
       return _cache?.data ?? []
     }
 
-    const quizzes = (data || []).map(q => ({
-      id: q.id,
-      title: q.title,
-      description: q.description,
-      category: q.category || "General",
-      section: q.section || "General",
-      difficulty: q.difficulty || "medium",
-      time_limit: q.time_limit,
-      enabled: q.enabled,
-      created_at: q.created_at,
-      questions: Array.isArray(q.questions)
-        ? q.questions.map((qs: { id?: string }) => ({ id: qs.id ?? "" }))
-        : [],
-      structure_location: q.structure_location ?? null,
-    }))
+    const quizzes = (data || []).map(q => {
+      const questionList = Array.isArray(q.questions) ? q.questions : []
+      const hasContent = questionList.some(
+        (qs: { question?: string }) => qs.question && qs.question.trim() !== ""
+      )
+      return {
+        id: q.id,
+        title: q.title,
+        description: q.description,
+        category: q.category || "General",
+        section: q.section || "General",
+        difficulty: q.difficulty || "medium",
+        time_limit: q.time_limit,
+        enabled: q.enabled,
+        created_at: q.created_at,
+        questions: questionList.map((qs: { id?: string }) => ({ id: qs.id ?? "" })),
+        hasContent,
+        structure_location: q.structure_location ?? null,
+      }
+    })
 
     _cache = { data: quizzes, at: Date.now() }
     return quizzes
