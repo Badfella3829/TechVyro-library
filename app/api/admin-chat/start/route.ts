@@ -34,14 +34,14 @@ export async function POST(req: Request) {
       .gte("last_message_at", cutoff)
 
     const text =
-      `🟢 <b>Naya Chat Session!</b>\n` +
+      `🟢 <b>New Chat Session!</b>\n` +
       `━━━━━━━━━━━━━━━━\n` +
       `👤 <b>Student:</b> ${studentName.trim()}\n` +
       `🔑 <b>Session:</b> <code>#${sessionId}</code>\n` +
       `🕐 <b>Time:</b> ${now}\n` +
       `👥 <b>Active chats:</b> ${activeSessions ?? 1}\n` +
       `━━━━━━━━━━━━━━━━\n` +
-      `<i>Student ke message pe "✏️ Quick Reply" dabao ya Telegram Reply feature use karo.</i>`
+      `<i>Use "✏️ Quick Reply" on the student's message or use the Telegram Reply feature.</i>`
 
     await sendTelegramMessage(text, {
       reply_markup: {

@@ -24,12 +24,12 @@ interface LiveMessage {
 }
 
 const QUICK_PROMPTS = [
-  { label: "📚 PDFs", text: "Physics ke important PDFs suggest karo" },
-  { label: "🧮 Math", text: "Quadratic equation solve karna sikhaao step by step" },
-  { label: "⚛️ Physics", text: "Newton ke 3 laws of motion explain karo examples ke saath" },
-  { label: "🎯 NDA", text: "NDA 2025 exam ki best preparation strategy kya hai?" },
-  { label: "🧬 Bio", text: "Cell division (Mitosis vs Meiosis) ka difference samjhao" },
-  { label: "📝 English", text: "Letter writing format — formal letter kaise likhein?" },
+  { label: "📚 PDFs", text: "Suggest important Physics PDFs" },
+  { label: "🧮 Math", text: "Teach me how to solve quadratic equations step by step" },
+  { label: "⚛️ Physics", text: "Explain Newton's 3 laws of motion with examples" },
+  { label: "🎯 NDA", text: "What is the best preparation strategy for NDA 2025?" },
+  { label: "🧬 Bio", text: "Explain the difference between Mitosis and Meiosis" },
+  { label: "📝 English", text: "Letter writing format — how to write a formal letter?" },
 ]
 
 // ── Rich Markdown Renderer ──────────────────────────
@@ -174,11 +174,11 @@ function CopyButton({ text }: { text: string }) {
 
 // ── Suggested Follow-up Questions ──────────────────
 const FOLLOW_UPS: Record<string, string[]> = {
-  physics: ["Formula chart chahiye?", "Practice problems do", "Real life example batao"],
-  math: ["Aur examples do", "Short trick hai koi?", "Practice set chahiye"],
-  chemistry: ["Reaction mechanism explain karo", "Important formulas list karo"],
-  nda: ["Cut-off marks kya hai?", "Study schedule banao", "Important topics batao"],
-  default: ["Aur detail mein batao", "Example do", "Practice questions do"],
+  physics: ["Give me a formula chart", "Give practice problems", "Show a real life example"],
+  math: ["Give more examples", "Any short trick?", "Give a practice set"],
+  chemistry: ["Explain the reaction mechanism", "List important formulas"],
+  nda: ["What are the cut-off marks?", "Make a study schedule", "Tell me important topics"],
+  default: ["Explain in more detail", "Give an example", "Give practice questions"],
 }
 
 function getSuggestedFollowUps(lastMsg: string): string[] {
@@ -195,7 +195,7 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
   const INITIAL_MSG: Message = {
     id: "welcome",
     role: "assistant",
-    content: "**Namaste! 🎓 Main TechVyro AI Assistant hoon.**\n\nMain aapki madad kar sakta hoon:\n- **📚 Study Questions** — Maths, Physics, Chemistry, Biology, English, History...\n- **🔍 PDF Dhundhna** — Library mein available study materials\n- **🎯 Exam Prep** — NDA, JEE, NEET, SSC, UPSC strategies\n- **🧮 Problems Solve** — Numericals, equations, derivations\n\nNeeche se topic choose karo ya apna sawaal type karo! 👇",
+    content: "**Hello! 🎓 I'm TechVyro AI Assistant.**\n\nI can help you with:\n- **📚 Study Questions** — Maths, Physics, Chemistry, Biology, English, History...\n- **🔍 Find PDFs** — Study materials available in the library\n- **🎯 Exam Prep** — NDA, JEE, NEET, SSC, UPSC strategies\n- **🧮 Problem Solving** — Numericals, equations, derivations\n\nPick a topic below or type your question! 👇",
     timestamp: new Date(),
   }
 
@@ -287,7 +287,7 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
       }
 
       setMessages(prev => prev.map(m =>
-        m.id === aiMsgId ? { ...m, streaming: false, content: fullText || "Kuch gadbad ho gaya, dobara try karo." } : m
+        m.id === aiMsgId ? { ...m, streaming: false, content: fullText || "Something went wrong, please try again." } : m
       ))
       setShowSuggestions(true)
     } catch (err: unknown) {
@@ -297,7 +297,7 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
         ))
       } else {
         setMessages(prev => prev.map(m =>
-          m.id === aiMsgId ? { ...m, streaming: false, content: "⚠️ Network error. Please dobara try karo." } : m
+          m.id === aiMsgId ? { ...m, streaming: false, content: "⚠️ Network error. Please try again." } : m
         ))
       }
     } finally {
@@ -405,8 +405,8 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
             <MessageSquareHeart className="h-3.5 w-3.5" />
           </div>
           <div className="flex-1 text-left">
-            <p className="text-[11px] font-semibold text-violet-700 dark:text-violet-300 leading-tight">Admin se Live Chat Karo</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">Real-time chat → Admin Telegram pe reply karega</p>
+            <p className="text-[11px] font-semibold text-violet-700 dark:text-violet-300 leading-tight">Chat with Admin Live</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">Real-time chat → Admin replies via Telegram</p>
           </div>
           <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
         </button>
@@ -439,7 +439,7 @@ function AiChat({ onSwitchToAdmin }: { onSwitchToAdmin: () => void }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-            placeholder="Kuch bhi poochho..."
+            placeholder="Ask anything..."
             className="h-9 text-xs rounded-xl border-border/50 bg-background focus:border-violet-400 transition-colors flex-1"
             disabled={streaming}
             maxLength={500}
@@ -616,12 +616,12 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
         setLiveMessages([{
           id: "system-1",
           sender: "admin",
-          message: `✅ Chat shuru ho gaya! Admin ko Telegram notification bhej di gayi hai. Woh jald reply karenge. Session ID: #${data.sessionId}`,
+          message: `✅ Chat started! Admin has been notified on Telegram and will reply shortly. Session ID: #${data.sessionId}`,
           created_at: sessionStartTime,
         }])
         setTimeout(() => inputRef.current?.focus(), 200)
       } else {
-        alert("Chat start nahi hua. Please dobara try karo.")
+        alert("Chat could not be started. Please try again.")
       }
     } catch {
       alert("Network error. Please try again.")
@@ -680,7 +680,7 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
         <div>
           <p className="font-bold text-sm text-foreground">Login Required</p>
           <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed max-w-[220px] mx-auto">
-            Admin se live chat ke liye pehle apna account mein login karo.
+            Please log in to your account to chat with admin.
           </p>
         </div>
         <Link
@@ -688,13 +688,13 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-xs font-semibold shadow-sm shadow-violet-500/30 hover:from-violet-700 hover:to-purple-700 transition-all"
         >
           <LogIn className="h-3.5 w-3.5" />
-          Login Karo
+          Login
         </Link>
         <button
           onClick={onBack}
           className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
         >
-          ← AI Chat pe wapas jao
+          ← Back to AI Chat
         </button>
       </div>
     )
@@ -707,7 +707,7 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
         <div className="flex items-start gap-2 p-3 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/60 dark:border-violet-800/40">
           <MessageSquareHeart className="h-4 w-4 text-violet-500 shrink-0 mt-0.5" />
           <p className="text-[11px] text-violet-700 dark:text-violet-300 leading-relaxed">
-            Admin se real-time chat karo. Woh Telegram se reply karenge aur message yahan dikh jayega.
+            Chat with admin in real-time. They will reply via Telegram and messages will appear here.
           </p>
         </div>
 
@@ -715,19 +715,19 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200/50 dark:border-green-800/40">
             <User className="h-3.5 w-3.5 text-green-600 shrink-0" />
             <p className="text-[11px] text-green-700 dark:text-green-400">
-              Profile se naam fill ho gaya: <strong>{prefillName}</strong>
+              Name auto-filled from profile: <strong>{prefillName}</strong>
             </p>
           </div>
         )}
 
         <div className="flex flex-col gap-2">
-          <label className="text-[11px] font-semibold text-muted-foreground">Aapka Naam *</label>
+          <label className="text-[11px] font-semibold text-muted-foreground">Your Name *</label>
           <Input
             ref={nameRef}
             value={studentName}
             onChange={e => setStudentName(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") startSession() }}
-            placeholder="Jaise: Rahul Kumar"
+            placeholder="E.g. Rahul Kumar"
             className="h-9 text-xs rounded-xl border-border/50 bg-background focus:border-violet-400"
             disabled={starting}
           />
@@ -741,7 +741,7 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
           {starting ? (
             <span className="flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" />Starting…</span>
           ) : (
-            <span className="flex items-center gap-2"><MessageSquareHeart className="h-3.5 w-3.5" />Chat Shuru Karo</span>
+            <span className="flex items-center gap-2"><MessageSquareHeart className="h-3.5 w-3.5" />Start Chat</span>
           )}
         </Button>
       </div>
@@ -814,7 +814,7 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg() } }}
-            placeholder="Admin ko message karo…"
+            placeholder="Message admin…"
             className="h-9 text-xs rounded-xl border-border/50 bg-background focus:border-emerald-400 transition-colors"
             disabled={sending}
           />
@@ -830,13 +830,13 @@ function AdminLiveChat({ onBack, prefillName, isLoggedIn }: { onBack: () => void
         <div className="flex items-center justify-between mt-1.5">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-            Live Chat — Admin Telegram pe hai
+            Live Chat — Admin is on Telegram
           </p>
           <button
             onClick={endSessionManually}
             className="text-[10px] text-red-500 hover:text-red-600 font-medium transition-colors"
           >
-            Chat Band Karo ✕
+            End Chat ✕
           </button>
         </div>
       </div>

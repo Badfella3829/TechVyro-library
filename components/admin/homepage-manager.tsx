@@ -47,7 +47,7 @@ const defaultTestimonials: Testimonial[] = [
     course: "NDA Aspirant",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    comment: "TechVyro ne meri NDA preparation ko next level pe le gaya. Notes itne clear hain ki ek baar padhke yaad ho jaata hai!",
+    comment: "TechVyro took my NDA preparation to the next level. The notes are so clear that I remember everything after just one read!",
     verified: true,
     enabled: true,
     createdAt: new Date().toISOString()
@@ -58,7 +58,7 @@ const defaultTestimonials: Testimonial[] = [
     course: "B.Tech Student",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    comment: "Engineering ke saare subjects ke notes mil gaye ek jagah. Exam se pehle revision ke liye perfect resource hai!",
+    comment: "Found notes for all engineering subjects in one place. It's the perfect resource for revision before exams!",
     verified: true,
     enabled: true,
     createdAt: new Date().toISOString()
@@ -69,7 +69,7 @@ const defaultTestimonials: Testimonial[] = [
     course: "SSC Aspirant",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    comment: "Previous year papers aur solutions sab free mein! Maine 3 competitive exams clear kiye TechVyro ke resources se.",
+    comment: "Previous year papers and solutions all for free! I cleared 3 competitive exams using TechVyro's resources.",
     verified: true,
     enabled: true,
     createdAt: new Date().toISOString()
@@ -80,7 +80,7 @@ const defaultTestimonials: Testimonial[] = [
     course: "NEET Aspirant",
     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    comment: "Biology aur Chemistry ke notes bahut detailed hain. Diagrams itne clear hain ki concepts turant samajh aate hain!",
+    comment: "Biology and Chemistry notes are very detailed. The diagrams are so clear that concepts are easy to understand instantly!",
     verified: true,
     enabled: true,
     createdAt: new Date().toISOString()
@@ -91,7 +91,7 @@ const defaultTestimonials: Testimonial[] = [
     course: "UPSC Aspirant",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    comment: "Current affairs aur static GK ke PDFs regularly update hote hain. Prelims preparation ke liye best resource!",
+    comment: "Current affairs and static GK PDFs are regularly updated. Best resource for Prelims preparation!",
     verified: true,
     enabled: true,
     createdAt: new Date().toISOString()
@@ -102,7 +102,7 @@ const defaultTestimonials: Testimonial[] = [
     course: "Class 12 Student",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    comment: "Board exams ke liye NCERT solutions aur sample papers mil gaye. 95% score kiya thanks to TechVyro!",
+    comment: "Found NCERT solutions and sample papers for board exams. Scored 95% thanks to TechVyro!",
     verified: true,
     enabled: true,
     createdAt: new Date().toISOString()

@@ -7,14 +7,14 @@ const HELP_TEXT =
   `━━━━━━━━━━━━━━━━━━\n\n` +
   `<b>📋 Sessions:</b>\n` +
   `• /sessions — Active chat sessions\n\n` +
-  `<b>✏️ Reply karne ke tarike:</b>\n` +
-  `1️⃣ Student message pe <b>Telegram Reply</b> karein\n` +
+  `<b>✏️ Ways to reply:</b>\n` +
+  `1️⃣ Use <b>Telegram Reply</b> on a student's message\n` +
   `2️⃣ Inline <b>"✏️ Quick Reply"</b> button\n` +
   `3️⃣ Command: <code>/reply SESSION_ID message</code>\n\n` +
   `<b>📊 Stats:</b>\n` +
-  `• /stats — Aaj ki chat statistics\n\n` +
+  `• /stats — Today's chat statistics\n\n` +
   `<b>❓ Help:</b>\n` +
-  `• /help — Yeh message\n` +
+  `• /help — This message\n` +
   `• /start — Welcome message`
 
 export async function POST(req: Request) {
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
         if (!sessions?.length) {
           await sendTelegramToChat(token, fromChatId,
-            "ℹ️ Abhi koi active session nahi hai (last 30 min).")
+            "ℹ️ No active sessions right now (last 30 min).")
         } else {
           const list = sessions.map((s, i) => {
             const ago = Math.round((Date.now() - new Date(s.last_message_at).getTime()) / 60000)
@@ -90,11 +90,11 @@ export async function POST(req: Request) {
         const targetSession = parts[1]
         const targetName = parts.slice(2).join(":") || "Student"
 
-        await answerCallbackQuery(token, cbId, `✏️ Is message pe Reply karein`)
+        await answerCallbackQuery(token, cbId, `✏️ Reply to this message`)
 
         // Send a force-reply prompt — session ID embedded in text so webhook can parse it
         await sendTelegramToChat(token, fromChatId,
-          `📝 <b>${targetName}</b>  <code>#${targetSession}</code>\n\nIs message pe <b>Telegram Reply</b> karein aur apna jawab type karein 👇`, {
+          `📝 <b>${targetName}</b>  <code>#${targetSession}</code>\n\nUse <b>Telegram Reply</b> on this message and type your response 👇`, {
             reply_markup: { force_reply: true, selective: true },
           })
 
@@ -123,11 +123,11 @@ export async function POST(req: Request) {
     // ── /start ───────────────────────────────────────────────
     if (text === "/start") {
       await sendTelegramToChat(token, fromChatId,
-        `👋 <b>Namaste, TechVyro Admin!</b>\n\n` +
-        `Main aapka <b>Live Chat Assistant Bot</b> hoon.\n` +
-        `Students website pe chat karte hain, messages yahan aate hain.\n\n` +
-        `📋 /sessions — Active chats dekhein\n` +
-        `❓ /help — Saare commands`, {
+        `👋 <b>Hello, TechVyro Admin!</b>\n\n` +
+        `I am your <b>Live Chat Assistant Bot</b>.\n` +
+        `Students chat on the website and messages arrive here.\n\n` +
+        `📋 /sessions — View active chats\n` +
+        `❓ /help — All commands`, {
           reply_markup: {
             inline_keyboard: [[
               { text: "📋 Active Sessions", callback_data: "sessions" },
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
 
       if (!sessions?.length) {
         await sendTelegramToChat(token, fromChatId,
-          "ℹ️ <b>Active Sessions</b>\n\nAbhi koi active session nahi hai.")
+          "ℹ️ <b>Active Sessions</b>\n\nNo active sessions at the moment.")
         return NextResponse.json({ ok: true })
       }
 
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
 
       await sendTelegramToChat(token, fromChatId,
         `📋 <b>Active Sessions</b>  (last 30 min)\n━━━━━━━━━━━━━━━━\n\n${list}\n\n` +
-        `<i>Reply button ya /reply command se jawab dein.</i>`, {
+        `<i>Reply via button or /reply command.</i>`, {
           reply_markup: { inline_keyboard: buttons },
         })
       return NextResponse.json({ ok: true })
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
         `📊 <b>Chat Statistics</b>\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `🟢 <b>Active now:</b> ${activeSessions ?? 0}\n` +
-        `📅 <b>Aaj ke sessions:</b> ${todaySessions ?? 0}\n` +
+        `📅 <b>Today's sessions:</b> ${todaySessions ?? 0}\n` +
         `📁 <b>Total sessions:</b> ${totalSessions ?? 0}\n` +
         `💬 <b>Total messages:</b> ${totalMsgs ?? 0}`, {
           reply_markup: {
@@ -230,8 +230,8 @@ export async function POST(req: Request) {
 
       if (!session) {
         await sendTelegramToChat(token, fromChatId,
-          `❌ Session <code>#${targetSession}</code> nahi mila.\n\n` +
-          `Active sessions dekhne ke liye: /sessions`, {
+          `❌ Session <code>#${targetSession}</code> not found.\n\n` +
+          `View active sessions: /sessions`, {
             reply_markup: { inline_keyboard: [[{ text: "📋 Sessions", callback_data: "sessions" }]] },
           })
         return NextResponse.json({ ok: true })
@@ -247,7 +247,7 @@ export async function POST(req: Request) {
         .eq("id", session.id)
 
       await sendTelegramToChat(token, fromChatId,
-        `✅ <b>Reply bhej diya!</b>\n` +
+        `✅ <b>Reply sent!</b>\n` +
         `👤 <b>${session.student_name}</b>  <code>#${session.id}</code>\n` +
         `💬 <i>"${replyText.slice(0, 80)}${replyText.length > 80 ? "…" : ""}"</i>`, {
           reply_markup: {
@@ -284,9 +284,9 @@ export async function POST(req: Request) {
     if (!sessionId) {
       // Unknown message — show help
       await sendTelegramToChat(token, fromChatId,
-        `⚠️ Kisi student ka message pe <b>Telegram Reply</b> karein,\n` +
-        `ya <b>"✏️ Quick Reply"</b> button use karein.\n\n` +
-        `Ya type karein:\n<code>/reply SESSION_ID aapka jawab</code>\n\n` +
+        `⚠️ Use <b>Telegram Reply</b> on a student's message,\n` +
+        `or use the <b>"✏️ Quick Reply"</b> button.\n\n` +
+        `Or type:\n<code>/reply SESSION_ID your_message</code>\n\n` +
         `Available commands: /help`, {
           reply_markup: {
             inline_keyboard: [[

@@ -19,9 +19,9 @@ export async function POST(req: Request) {
     const name = studentName || "Student"
 
     let icon = "🔴"
-    let reasonText = "User ne chat chhod diya"
-    if (reason === "tab_closed") { icon = "🚪"; reasonText = "Tab/browser band kar diya" }
-    else if (reason === "ended_by_user") { icon = "✅"; reasonText = "Student ne chat end kiya" }
+    let reasonText = "User left the chat"
+    if (reason === "tab_closed") { icon = "🚪"; reasonText = "Tab/browser closed" }
+    else if (reason === "ended_by_user") { icon = "✅"; reasonText = "Student ended the chat" }
     else if (reason === "timeout") { icon = "⏱️"; reasonText = "Session timeout" }
 
     const text =
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       `💬 <b>Messages:</b> ${msgCount}\n` +
       `📌 <b>Reason:</b> ${reasonText}\n` +
       `━━━━━━━━━━━━━━━━\n` +
-      `<i>Yeh session ab close ho gaya hai.</i>`
+      `<i>This session is now closed.</i>`
 
     await sendTelegramMessage(text)
 
