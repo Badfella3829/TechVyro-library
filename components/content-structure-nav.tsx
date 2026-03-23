@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import {
   ChevronRight, ChevronDown, BookOpen, Layers, FileText,
   Folder, FolderOpen, Code, Calculator, FlaskConical,
   Globe, Briefcase, Zap, Database, LayoutGrid, X, Menu,
-  GraduationCap
+  GraduationCap, ExternalLink
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -229,6 +230,14 @@ export function ContentStructureNav({
                     <span className="flex-1 text-left truncate">{folder.name}</span>
                     <CountBadge count={count} active={isFolderActive} />
                   </button>
+                  <Link
+                    href={`/subject/${folder.id}`}
+                    title={`Open ${folder.name} subject page`}
+                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground hover:text-primary shrink-0 transition-colors"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
                 </div>
 
                 {isFolderExpanded && cats.length > 0 && (

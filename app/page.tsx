@@ -8,6 +8,7 @@ import { CategoriesSection } from "@/components/home/categories-section"
 import { QuizSection } from "@/components/home/quiz-section"
 import { TestimonialsSection } from "@/components/home/testimonials-section"
 import { RecentlyViewedSection } from "@/components/home/recently-viewed-section"
+import { SubjectsSection } from "@/components/home/subjects-section"
 import { HomeAutoRefresh } from "@/components/home/home-auto-refresh"
 import { Chatbot } from "@/components/chatbot"
 import { PDFGrid } from "@/components/pdf-grid"
@@ -135,7 +136,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         {/* 2. RECENTLY VIEWED (client-side localStorage) */}
         <RecentlyViewedSection />
 
-        {/* 3. STATS SECTION */}
+        {/* 3. SUBJECTS SECTION */}
+        <SubjectsSection />
+
+        {/* 4. STATS SECTION */}
         {configured && pdfs.length > 0 && (
           <StatsSection stats={stats} />
         )}
