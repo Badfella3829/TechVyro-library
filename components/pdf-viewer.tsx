@@ -96,6 +96,7 @@ export function PDFViewer({ pdf, relatedPDFs = [] }: PDFViewerProps) {
     saveRecentlyViewed({
       id: pdf.id,
       title: pdf.title,
+      type: "pdf",
       categoryName: pdf.category?.name,
       categoryColor: pdf.category?.color,
     })

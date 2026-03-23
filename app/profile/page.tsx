@@ -11,8 +11,9 @@ import {
   User, Trophy, BookOpen, Star, Clock, CheckCircle, XCircle,
   SkipForward, ArrowLeft, Edit2, Save, X, LogOut, FileText,
   TrendingUp, Download, Calendar, Zap, Award, Target, ChevronRight,
-  RefreshCw,
+  RefreshCw, Eye,
 } from "lucide-react"
+import { getRecentlyViewed, type RecentlyViewedItem } from "@/components/home/recently-viewed-section"
 
 interface QuizResult {
   id: string
@@ -56,7 +57,7 @@ interface ProfileData {
   favoritePdfs: FavoritePdf[]
 }
 
-type Tab = "history" | "saved" | "settings"
+type Tab = "history" | "saved" | "recent" | "settings"
 
 function formatTime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`
@@ -91,6 +92,7 @@ export default function ProfilePage() {
   const [newName, setNewName] = useState("")
   const [savingName, setSavingName] = useState(false)
   const [nameMsg, setNameMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [recentItems, setRecentItems] = useState<RecentlyViewedItem[]>([])
 
   const fetchProfile = useCallback(async () => {
     setLoading(true)
@@ -119,6 +121,7 @@ export default function ProfilePage() {
     }
     if (!authLoading && authUser) {
       fetchProfile()
+      setRecentItems(getRecentlyViewed())
     }
   }, [authLoading, authUser, fetchProfile, router])
 
@@ -219,6 +222,7 @@ export default function ProfilePage() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: "history", label: "Quiz History", icon: <Trophy className="h-4 w-4" />, count: stats.totalQuizzes },
     { id: "saved", label: "Saved PDFs", icon: <Star className="h-4 w-4" />, count: stats.totalFavorites },
+    { id: "recent", label: "Recently Viewed", icon: <Clock className="h-4 w-4" />, count: recentItems.length || undefined },
     { id: "settings", label: "Settings", icon: <Edit2 className="h-4 w-4" /> },
   ]
 
@@ -437,6 +441,78 @@ export default function ProfilePage() {
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
                       </Link>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* RECENTLY VIEWED */}
+            {tab === "recent" && (
+              <div>
+                {recentItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Clock className="h-7 w-7 text-primary" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold">Nothing viewed yet</p>
+                      <p className="text-sm text-muted-foreground mt-1">PDFs and quizzes you open will appear here</p>
+                    </div>
+                    <Button asChild className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                      <Link href="/"><BookOpen className="h-4 w-4" />Browse Library</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {recentItems.map((item) => {
+                      const isQuiz = item.type === "quiz"
+                      const accent = isQuiz ? "#f59e0b" : (item.categoryColor || "#6366f1")
+                      const href = isQuiz ? `/quiz/${item.id}` : `/pdf/${item.id}`
+                      return (
+                        <Link
+                          key={`${item.type}-${item.id}`}
+                          href={href}
+                          className="flex items-center gap-3 p-3.5 rounded-xl border border-border/40 hover:border-border/70 hover:bg-muted/20 transition-all group"
+                        >
+                          <div
+                            className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: `${accent}18` }}
+                          >
+                            {isQuiz
+                              ? <Trophy className="h-5 w-5" style={{ color: accent }} />
+                              : <FileText className="h-5 w-5" style={{ color: accent }} />
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{item.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide"
+                                style={{ backgroundColor: `${accent}18`, color: accent }}
+                              >
+                                {isQuiz ? "Quiz" : "PDF"}
+                              </span>
+                              {!isQuiz && item.categoryName && (
+                                <span className="text-[10px] text-muted-foreground">{item.categoryName}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Eye className="h-3 w-3" />
+                            {(() => {
+                              const diff = Date.now() - new Date(item.viewedAt).getTime()
+                              const mins = Math.floor(diff / 60000)
+                              const hours = Math.floor(diff / 3600000)
+                              const days = Math.floor(diff / 86400000)
+                              if (mins < 1) return "Just now"
+                              if (mins < 60) return `${mins}m ago`
+                              if (hours < 24) return `${hours}h ago`
+                              return `${days}d ago`
+                            })()}
+                          </div>
+                        </Link>
+                      )
+                    })}
                   </div>
                 )}
               </div>

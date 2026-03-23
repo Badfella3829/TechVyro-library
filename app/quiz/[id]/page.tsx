@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ArrowLeft, FileText, Lock } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { saveRecentlyViewed } from "@/components/home/recently-viewed-section"
 
 interface Question {
   id: string
@@ -58,6 +59,7 @@ export default function QuizPage() {
             setError("This quiz has no questions yet")
           } else {
             setQuiz(q)
+            saveRecentlyViewed({ id: q.id, title: q.title, type: "quiz" })
           }
         })
         .catch(() => setError("Failed to load quiz"))
