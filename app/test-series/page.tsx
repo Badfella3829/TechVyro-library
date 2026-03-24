@@ -543,13 +543,17 @@ function TestSeriesContent() {
   )
 }
 
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+    </div>
+  )
+}
+
 export default function TestSeriesPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
-      </div>
-    }>
+    <Suspense fallback={<LoadingFallback />}>
       <TestSeriesContent />
     </Suspense>
   )

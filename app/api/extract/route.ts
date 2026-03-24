@@ -225,35 +225,70 @@ export async function GET(request: Request) {
     const shuffledPlatforms = [...PLATFORM_LIST].sort(() => Math.random() - 0.5)
     const platformsToTry = shuffledPlatforms.slice(0, 10)
 
-    // Fetch from platforms in parallel using web scraping
+    // Fetch from platforms in parallel - try both API and web scraping
     const fetchPromises = platformsToTry.map(async (platform) => {
+      const webUrl = deriveWebUrl(platform.api)
+      
+      // Try multiple methods to get data
       try {
-        // Convert API URL to web URL (remove "api" from subdomain)
-        const webUrl = deriveWebUrl(platform.api)
+        // Method 1: Try web scraping first (most reliable for APX platforms)
+        const webPaths = ["/test-series/", "/test-series", "/courses/", "/"]
+        for (const path of webPaths) {
+          try {
+            const res = await fetchWithTimeout(`${webUrl}${path}`, { headers: HEADERS }, 5000)
+            if (res.ok) {
+              const html = await res.text()
+              const nextData = extractNextData(html)
+              if (nextData) {
+                const series = findTestSeries(nextData)
+                if (series.length > 0) {
+                  console.log(`[v0] Found ${series.length} series from ${webUrl}${path}`)
+                  return series.slice(0, 5).map(s => ({
+                    ...(s as object),
+                    _sourceApi: platform.api,
+                    _sourceWeb: webUrl,
+                    _platformName: platform.name,
+                    isSample: false,
+                  }))
+                }
+              }
+            }
+          } catch {
+            // Try next path
+          }
+        }
         
-        // Fetch the /test-series/ page
-        const res = await fetchWithTimeout(`${webUrl}/test-series/`, { headers: HEADERS }, 6000)
-        if (!res.ok) return []
-        
-        const html = await res.text()
-        const nextData = extractNextData(html)
-        if (!nextData) return []
-        
-        // Extract test series from __NEXT_DATA__
-        const series = findTestSeries(nextData)
-        if (series.length === 0) return []
-        
-        // Map and return
-        return series.slice(0, 5).map(s => ({
-          ...(s as object),
-          _sourceApi: platform.api,
-          _sourceWeb: webUrl,
-          _platformName: platform.name,
-          isSample: false,
-        }))
-      } catch {
-        return []
+        // Method 2: Try API endpoints as fallback
+        const apiEndpoints = [
+          "/api/v1/test-series/?format=json",
+          "/api/v2/test-series/?format=json",
+          "/api/v1/courses/?format=json",
+        ]
+        for (const endpoint of apiEndpoints) {
+          try {
+            const res = await fetchWithTimeout(`${platform.api}${endpoint}`, { headers: HEADERS }, 5000)
+            if (res.ok) {
+              const json = await res.json()
+              const series = findTestSeries(json)
+              if (series.length > 0) {
+                console.log(`[v0] Found ${series.length} series from API ${platform.api}${endpoint}`)
+                return series.slice(0, 5).map(s => ({
+                  ...(s as object),
+                  _sourceApi: platform.api,
+                  _sourceWeb: webUrl,
+                  _platformName: platform.name,
+                  isSample: false,
+                }))
+              }
+            }
+          } catch {
+            // Try next endpoint
+          }
+        }
+      } catch (err) {
+        console.log(`[v0] Failed to fetch from ${platform.name}:`, err)
       }
+      return []
     })
 
     const results = await Promise.allSettled(fetchPromises)
