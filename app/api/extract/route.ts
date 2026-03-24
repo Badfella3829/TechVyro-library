@@ -194,17 +194,15 @@ export async function GET(request: Request) {
   const bulkMode = searchParams.get("bulk") === "true"
   const category = searchParams.get("category")?.trim()
 
-  // Bulk mode: return sample test series for the category
+  // Bulk mode: fetch from APX platforms and return test series
   if (bulkMode && category) {
-    // Get sample series for this category
+    // Get sample series for this category as base
     const sampleSeries = getSampleSeriesForCategory(category)
     const allSampleSeries = getAllSampleSeries()
+    const baseSeries = sampleSeries.length > 0 ? sampleSeries : allSampleSeries
     
-    // Use category-specific samples if available, otherwise use all
-    const seriesToReturn = sampleSeries.length > 0 ? sampleSeries : allSampleSeries
-    
-    // Map to API response format
-    const formattedSeries = seriesToReturn.map(s => ({
+    // Format sample series
+    const formattedSamples = baseSeries.map(s => ({
       id: s.id,
       title: s.title,
       slug: s.slug,
@@ -219,28 +217,43 @@ export async function GET(request: Request) {
       _sourceWeb: "",
     }))
 
-    // Also try to fetch from a few APX platforms for live data
-    const shuffledPlatforms = [...PLATFORM_LIST].sort(() => Math.random() - 0.5)
-    const platformsToTry = shuffledPlatforms.slice(0, 5)
-
+    // Try to fetch LIVE data from APX platforms by scraping their websites
+    // APX platforms use Next.js and store data in __NEXT_DATA__ script tag
     const liveSeries: unknown[] = []
     
-    // Quick parallel fetch from a few platforms (short timeout)
+    // Select random platforms to try
+    const shuffledPlatforms = [...PLATFORM_LIST].sort(() => Math.random() - 0.5)
+    const platformsToTry = shuffledPlatforms.slice(0, 10)
+
+    // Fetch from platforms in parallel using web scraping
     const fetchPromises = platformsToTry.map(async (platform) => {
       try {
-        const series = await tryFetchFromPlatform(platform.api)
-        if (series && series.length > 0) {
-          return series.slice(0, 3).map(s => ({
-            ...(s as object),
-            _sourceApi: platform.api,
-            _sourceWeb: deriveWebUrl(platform.api),
-            _platformName: platform.name,
-          }))
-        }
+        // Convert API URL to web URL (remove "api" from subdomain)
+        const webUrl = deriveWebUrl(platform.api)
+        
+        // Fetch the /test-series/ page
+        const res = await fetchWithTimeout(`${webUrl}/test-series/`, { headers: HEADERS }, 6000)
+        if (!res.ok) return []
+        
+        const html = await res.text()
+        const nextData = extractNextData(html)
+        if (!nextData) return []
+        
+        // Extract test series from __NEXT_DATA__
+        const series = findTestSeries(nextData)
+        if (series.length === 0) return []
+        
+        // Map and return
+        return series.slice(0, 5).map(s => ({
+          ...(s as object),
+          _sourceApi: platform.api,
+          _sourceWeb: webUrl,
+          _platformName: platform.name,
+          isSample: false,
+        }))
       } catch {
-        // Ignore failures
+        return []
       }
-      return []
     })
 
     const results = await Promise.allSettled(fetchPromises)
@@ -250,21 +263,26 @@ export async function GET(request: Request) {
       }
     }
 
-    // Combine live data with sample data - samples first for reliability
-    const combinedSeries = [...formattedSeries]
-    
-    // Add any live data that was successfully fetched
+    // If we got live data, clean and combine with samples
     if (liveSeries.length > 0) {
       const cleanedLive = cleanSeriesData(liveSeries)
-      combinedSeries.push(...cleanedLive.map(s => ({ ...s, isSample: false })))
+      return NextResponse.json({
+        success: true,
+        testSeries: [...cleanedLive, ...formattedSamples],
+        source: "apx-live",
+        count: cleanedLive.length + formattedSamples.length,
+        liveCount: cleanedLive.length,
+      })
     }
 
+    // No live data, return samples only
     return NextResponse.json({
       success: true,
-      testSeries: combinedSeries,
-      source: liveSeries.length > 0 ? "mixed" : "sample",
-      count: combinedSeries.length,
-      liveCount: liveSeries.length,
+      testSeries: formattedSamples,
+      source: "sample",
+      count: formattedSamples.length,
+      liveCount: 0,
+      notice: "Showing practice tests",
     })
   }
 

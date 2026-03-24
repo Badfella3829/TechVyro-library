@@ -99,64 +99,24 @@ function TestSeriesContent() {
     try {
       const cat = category || selectedCategory
       
-      // For "all" category, fetch from multiple categories
-      if (!cat || cat === "all") {
-        const categories = ["ssc", "banking", "defence", "railways"]
-        const results = await Promise.allSettled(
-          categories.map(c => 
-            fetch(`/api/extract?bulk=true&category=${c}`)
-              .then(r => r.json())
-              .then(data => ({
-                category: c,
-                series: (data.testSeries || []).slice(0, 5).map((s: TestSeries) => ({
-                  ...s,
-                  category: c,
-                  _sourceApi: data.apiBase || s._sourceApi,
-                  _sourceWeb: data.webBase || s._sourceWeb,
-                }))
-              }))
-          )
-        )
-        
-        const allSeries: TestSeries[] = []
-        for (const result of results) {
-          if (result.status === "fulfilled" && result.value.series.length > 0) {
-            allSeries.push(...result.value.series)
-          }
-        }
-        
-        if (allSeries.length > 0) {
-          setTestSeries(allSeries.map((s, idx) => ({ ...s, id: s.id || `series-${idx}` })))
-          setFetchError("")
-        } else {
-          setTestSeries([])
-          setFetchError("Showing practice tests")
-        }
-        if (showLoading) setLoading(false)
-        return
-      }
-      
-      // Single category fetch
-      const res = await fetch(`/api/extract?bulk=true&category=${cat}`)
+      // Fetch test series from APX platforms via bulk mode
+      const res = await fetch(`/api/extract?bulk=true&category=${cat === "all" ? "ssc" : cat}`)
       const data = await res.json()
       
       if (data.success && data.testSeries && data.testSeries.length > 0) {
-        const series = data.testSeries.map((s: TestSeries, idx: number) => ({
+        setTestSeries(data.testSeries.map((s: TestSeries, idx: number) => ({
           ...s,
           id: s.id || `series-${idx}`,
           category: s.category || cat,
-          _sourceApi: data.apiBase || s._sourceApi,
-          _sourceWeb: data.webBase || s._sourceWeb,
-        }))
-        setTestSeries(series)
+        })))
         setFetchError("")
       } else {
         setTestSeries([])
-        setFetchError(data.notice || "Showing practice tests")
+        setFetchError(data.notice || "No test series found")
       }
     } catch (err) {
       console.error("Error fetching test series:", err)
-      setFetchError("Could not load tests. Showing sample tests.")
+      setFetchError("Could not load tests")
       setTestSeries([])
     } finally {
       if (showLoading) setLoading(false)
@@ -219,7 +179,6 @@ function TestSeriesContent() {
 
   const visible = filtered.slice(0, visibleCount)
   const hasMore = visibleCount < filtered.length
-  const activeSortLabel = sortOptions.find(s => s.value === sortBy)?.label || "Sort"
   const hasAnyFilter = selectedCategory !== "all" || search.trim() !== ""
 
   const clearAll = () => {
@@ -241,7 +200,6 @@ function TestSeriesContent() {
           backgroundSize: "28px 28px"
         }} />
         <div className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-violet-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
 
         <div className="relative container mx-auto px-4 py-8 sm:py-12">
           <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
@@ -262,9 +220,9 @@ function TestSeriesContent() {
             {!loading && testSeries.length > 0 && (
               <div className="flex items-center gap-5 sm:gap-8 mt-6 flex-wrap justify-center">
                 {[
-                  { label: "Test Series", value: testSeries.length, icon: Brain, color: "text-violet-600" },
-                  { label: "Total Tests", value: totalTests, icon: FileText, color: "text-primary" },
-                  { label: "Questions", value: totalQuestions > 0 ? totalQuestions : "1000+", icon: Target, color: "text-green-500" },
+                  { label: "Test Series", value: testSeries.length, color: "text-violet-600" },
+                  { label: "Total Tests", value: totalTests, color: "text-primary" },
+                  { label: "Questions", value: totalQuestions > 0 ? totalQuestions : "1000+", color: "text-green-500" },
                 ].map(s => (
                   <div key={s.label} className="flex flex-col items-center gap-0.5">
                     <span className={`text-xl sm:text-2xl font-black ${s.color} tabular-nums`}>{s.value}</span>
@@ -451,76 +409,72 @@ function TestSeriesContent() {
           </div>
         )}
 
-        {/* Active filters indicator */}
-        {!loading && hasAnyFilter && filtered.length > 0 && (
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <span className="text-xs text-muted-foreground">Showing {filtered.length} results</span>
-            {selectedCategory !== "all" && (
-              <Badge variant="secondary" className="gap-1 text-xs capitalize bg-violet-500/10 text-violet-600 border-violet-500/20">
-                {selectedCategory}
-                <button onClick={() => handleCategoryChange("all")} className="ml-1">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-            {search && (
-              <Badge variant="secondary" className="gap-1 text-xs">
-                {`"${search}"`}
-                <button onClick={() => setSearchRaw("")} className="ml-1">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-          </div>
-        )}
-
         {/* Test Series Grid */}
-        {!loading && (
+        {!loading && filtered.length > 0 && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            {/* Results count */}
+            {hasAnyFilter && (
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="text-xs text-muted-foreground">Showing {filtered.length} results</span>
+                {selectedCategory !== "all" && (
+                  <Badge variant="secondary" className="gap-1 text-xs capitalize bg-violet-500/10 text-violet-600 border-violet-500/20">
+                    {selectedCategory}
+                    <button onClick={() => handleCategoryChange("all")} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {visible.map((series, idx) => {
-                const color = getCategoryColor(series.category)
-                const Icon = getCategoryIcon(series.category)
+                const catColor = getCategoryColor(series.category)
+                const CatIcon = getCategoryIcon(series.category)
                 
                 return (
                   <Card 
                     key={series.id || idx}
                     className="group overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border-border/50 hover:border-violet-400/40 flex flex-col"
                   >
-                    <div className="p-3 sm:p-4 flex flex-col flex-1">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                    <div className="p-4 flex flex-col flex-1">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2 mb-3">
                         <div 
-                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: `${color}15` }}
+                          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: `${catColor}15` }}
                         >
-                          <Icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color }} />
+                          <CatIcon className="h-5 w-5" style={{ color: catColor }} />
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
                           <Badge 
-                            className="text-[9px] sm:text-[10px] text-white py-0.5 px-1.5"
-                            style={{ backgroundColor: color }}
+                            className="text-[10px] text-white py-0.5 px-1.5"
+                            style={{ backgroundColor: catColor }}
                           >
                             {series.category?.toUpperCase() || "GENERAL"}
                           </Badge>
                           {series.isSample && (
-                            <Badge className="text-[9px] sm:text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20 py-0.5 px-1.5">
+                            <Badge className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20 py-0.5 px-1.5">
                               SAMPLE
                             </Badge>
                           )}
                         </div>
                       </div>
 
-                      <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 group-hover:text-violet-600 transition-colors mb-1.5 sm:mb-2">
+                      {/* Title */}
+                      <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-violet-600 transition-colors mb-2">
                         {series.title}
                       </h3>
 
+                      {/* Description */}
                       {series.description && (
-                        <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 mb-2">
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
                           {series.description}
                         </p>
                       )}
                       
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-muted-foreground mb-3 sm:mb-4 mt-auto">
+                      {/* Stats */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-4 mt-auto">
                         <div className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
                           <span>{series.total_tests || 10} Tests</span>
@@ -533,10 +487,11 @@ function TestSeriesContent() {
                         )}
                       </div>
                       
+                      {/* CTA */}
                       <Button 
                         onClick={() => handleStartSeries(series)}
                         size="sm" 
-                        className="w-full h-8 sm:h-9 text-[11px] sm:text-xs bg-violet-600 hover:bg-violet-700 gap-1"
+                        className="w-full h-9 text-xs bg-violet-600 hover:bg-violet-700 gap-1"
                       >
                         <Play className="h-3 w-3" />
                         Start Now
@@ -550,11 +505,12 @@ function TestSeriesContent() {
               })}
             </div>
 
+            {/* Load More */}
             {hasMore && (
               <div className="flex justify-center mt-8">
                 <Button
                   variant="outline"
-                  onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                  onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
                   className="gap-2"
                 >
                   Load More
@@ -562,23 +518,21 @@ function TestSeriesContent() {
                 </Button>
               </div>
             )}
-
-            {filtered.length === 0 && !fetchError && (
-              <div className="text-center py-16 sm:py-24">
-                <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-muted-foreground/50" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">No test series found</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {search ? "Try a different search term" : "No tests available for this category"}
-                </p>
-                <Button variant="outline" onClick={clearAll} className="gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Reset Filters
-                </Button>
-              </div>
-            )}
           </>
+        )}
+
+        {/* Empty state */}
+        {!loading && filtered.length === 0 && testSeries.length > 0 && (
+          <div className="text-center py-16">
+            <Search className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No results found</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Try adjusting your search or filters
+            </p>
+            <Button variant="outline" onClick={clearAll}>
+              Clear Filters
+            </Button>
+          </div>
         )}
       </main>
 
@@ -589,17 +543,13 @@ function TestSeriesContent() {
   )
 }
 
-function PageFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
-    </div>
-  )
-}
-
 export default function TestSeriesPage() {
   return (
-    <Suspense fallback={<PageFallback />}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+      </div>
+    }>
       <TestSeriesContent />
     </Suspense>
   )
