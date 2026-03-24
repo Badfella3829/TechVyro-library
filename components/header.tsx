@@ -523,7 +523,7 @@ export function Header() {
                   <div className="space-y-0.5">
                     {[
                       { href: "/quiz", icon: Trophy, label: "Quiz Portal", desc: "Test your knowledge", color: "text-amber-500", bg: "bg-amber-500/10" },
-                      { href: "/test-series", icon: Zap, label: "Test Series", desc: "Practice unlimited test series", color: "text-violet-500", bg: "bg-violet-500/10" },
+                      { href: "/test-series", icon: Zap, label: "Mock Test", desc: "Practice unlimited mock tests", color: "text-violet-500", bg: "bg-violet-500/10" },
                       { href: "/about", icon: Info, label: "About Us", desc: "Learn about TechVyro", color: "text-blue-500", bg: "bg-blue-500/10" },
                     ].map(item => (
                       <Link
@@ -726,7 +726,7 @@ export function Header() {
               { href: "/", icon: Home, label: "Home", color: "text-primary" },
               { href: "/#content", icon: BookOpen, label: "All PDFs", color: "text-blue-500" },
               { href: "/quiz", icon: Trophy, label: "Quiz Portal", color: "text-amber-500" },
-              { href: "/test-series", icon: Zap, label: "Test Series", color: "text-violet-500" },
+              { href: "/test-series", icon: Zap, label: "Mock Test", color: "text-violet-500" },
               { href: "/about", icon: Info, label: "About Us", color: "text-emerald-500" },
             ].map(item => (
               <Link

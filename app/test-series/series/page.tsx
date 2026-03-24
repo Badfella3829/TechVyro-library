@@ -52,7 +52,7 @@ function SeriesContent() {
   const slug = searchParams.get("slug") || ""
   const apiBase = searchParams.get("apiBase") || ""
   const webBase = searchParams.get("webBase") || ""
-  const rawTitle = searchParams.get("title") || "Test Series"
+  const rawTitle = searchParams.get("title") || "Mock Test"
   const seriesTitle = cleanTitle(rawTitle)
 
   const [loading, setLoading] = useState(true)

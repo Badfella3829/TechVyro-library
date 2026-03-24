@@ -530,7 +530,7 @@ if (!data.success || data.source === "sample" || !data.testSeries?.length) retur
   const detectedCat = detectCategory(s.title || s.name || "")
   return {
   id: `live-${idx}-${s.id || i}`,
-  title: s.title || s.name || `Test Series ${i + 1}`,
+  title: s.title || s.name || `Mock Test ${i + 1}`,
   subtitle: s.description || "Complete preparation series with practice tests",
   category: detectedCat,
   examTags: extractExamTags(s.title || s.name || ""),
@@ -609,7 +609,7 @@ const loadPlatform = async (platform: SearchResult) => {
   const data = await res.json()
   
   if (!data.success) {
-  setError("Could not load test series. Try another search.")
+  setError("Could not load mock tests. Try another search.")
   setLoading(false)
   return
   }
@@ -621,7 +621,7 @@ const loadPlatform = async (platform: SearchResult) => {
   } else {
   const mapped: DisplaySeries[] = rawSeries.map((s, i) => ({
   id: String(s.id || i),
-  title: s.title || s.name || `Test Series ${i + 1}`,
+  title: s.title || s.name || `Mock Test ${i + 1}`,
   subtitle: s.description || "Complete preparation with mock tests",
   category: detectCategory(s.title || s.name || ""),
   examTags: extractExamTags(s.title || s.name || ""),
@@ -746,12 +746,12 @@ const loadPlatform = async (platform: SearchResult) => {
             <div className="flex items-center gap-2 mb-3">
               <div className="flex items-center gap-1.5 bg-yellow-400/20 border border-yellow-400/30 rounded-full px-3 py-1">
                 <Zap className="h-3.5 w-3.5 text-yellow-300" />
-                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Free Test Series</span>
+                <span className="text-xs font-bold text-yellow-200 uppercase tracking-wider">Free Mock Test</span>
               </div>
             </div>
 
             <h1 className="text-3xl md:text-5xl font-extrabold mb-3 leading-tight">
-              Free Mock Test Series
+              Free Mock Tests
               <span className="text-yellow-300">.</span>
             </h1>
             <p className="text-violet-100 text-base md:text-lg mb-8 max-w-2xl">
@@ -787,7 +787,7 @@ const loadPlatform = async (platform: SearchResult) => {
                   value={platformQuery}
                   onChange={e => handlePlatformChange(e.target.value)}
                   onFocus={() => platformResults.length > 0 && setShowDropdown(true)}
-                  placeholder="Search for more test series (SSC, Banking, NDA...)"
+                  placeholder="Search mock tests (SSC, Banking, NDA...)"
                   className="pl-11 pr-10 h-13 text-base bg-white text-gray-900 border-0 shadow-xl rounded-xl"
                   style={{ height: "52px" }}
                   disabled={loading}
@@ -803,7 +803,7 @@ const loadPlatform = async (platform: SearchResult) => {
 {showDropdown && platformResults.length > 0 && !loading && (
   <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-72 overflow-y-auto">
     <div className="px-4 py-2 border-b border-gray-100 bg-gray-50">
-      <p className="text-xs font-medium text-gray-500">Found {platformResults.length} test series sources</p>
+      <p className="text-xs font-medium text-gray-500">Found {platformResults.length} mock test sources</p>
     </div>
     {platformResults.map((r, i) => {
       const result = r as SearchResult & { category?: string; displayName?: string }
@@ -817,7 +817,7 @@ const loadPlatform = async (platform: SearchResult) => {
             <GraduationCap className="h-4 w-4 text-violet-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-gray-800">{result.displayName || result.category || "Test Series"}</p>
+            <p className="font-semibold text-sm text-gray-800">{result.displayName || result.category || "Mock Test"}</p>
             <p className="text-xs text-gray-500">Click to load tests</p>
           </div>
           <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -856,7 +856,7 @@ const loadPlatform = async (platform: SearchResult) => {
               <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4">
                 <Loader2 className="h-5 w-5 text-violet-600 animate-spin flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-violet-700">Loading Test Series...</p>
+                  <p className="font-semibold text-violet-700">Loading Mock Tests...</p>
                   <p className="text-sm text-violet-600">Fetching available tests and questions</p>
                 </div>
               </div>
@@ -866,7 +866,7 @@ const loadPlatform = async (platform: SearchResult) => {
                 <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-semibold text-amber-700">{notice}</p>
-                  <p className="text-sm text-amber-600 mt-0.5">Browse our free sample test series below</p>
+                  <p className="text-sm text-amber-600 mt-0.5">Browse our free mock tests below</p>
                 </div>
               </div>
             )}
@@ -888,10 +888,10 @@ const loadPlatform = async (platform: SearchResult) => {
             <div>
               <h2 className="text-lg font-bold flex items-center gap-2">
                 <GraduationCap className="h-5 w-5 text-green-600" />
-                Test Series Loaded
+                Mock Tests Loaded
                 <span className="text-xs font-normal text-green-600 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">LIVE DATA</span>
               </h2>
-              <p className="text-sm text-muted-foreground">{liveSeries.length} test series ready to attempt</p>
+              <p className="text-sm text-muted-foreground">{liveSeries.length} mock tests ready to attempt</p>
             </div>
             <button onClick={clearPlatform} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors border border-border rounded-lg px-3 py-1.5 bg-background">
               <X className="h-3.5 w-3.5" /> Clear
@@ -940,7 +940,7 @@ const loadPlatform = async (platform: SearchResult) => {
               <Input
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setShowAll(false) }}
-                placeholder="Search test series, exam name..."
+                placeholder="Search mock tests, exam name..."
                 className="pl-9 pr-8 h-10"
                 suppressHydrationWarning
               />
@@ -1002,7 +1002,7 @@ const loadPlatform = async (platform: SearchResult) => {
           {autoFetching && !liveSeries && (
             <div className="flex items-center gap-2 mb-4 px-1 text-sm text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-500" />
-              <span>Loading more test series...</span>
+              <span>Loading more mock tests...</span>
             </div>
           )}
           {!autoFetching && autoLiveSeries.length > 0 && !liveSeries && (
@@ -1016,7 +1016,7 @@ const loadPlatform = async (platform: SearchResult) => {
           {!loading && sorted.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <BookOpen className="h-16 w-16 text-muted-foreground/30 mb-4" />
-              <p className="text-lg font-semibold">No test series found</p>
+              <p className="text-lg font-semibold">No mock tests found</p>
               <p className="text-muted-foreground text-sm mt-1">Try a different category or search term</p>
               <button onClick={() => { setSearchQuery(""); setSelectedCat("all") }} className="mt-4 text-sm text-violet-600 underline">Clear filters</button>
             </div>
@@ -1063,7 +1063,7 @@ const loadPlatform = async (platform: SearchResult) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
                   { step: "1", icon: BookOpen, title: "Select Category", desc: "Choose from SSC, Banking, Railways, NDA, UPSC and more exam categories" },
-                  { step: "2", icon: FileText, title: "Pick a Test Series", desc: "Browse test series and click Attempt Now to start" },
+                  { step: "2", icon: FileText, title: "Pick a Mock Test", desc: "Browse mock tests and click Attempt Now to start" },
                   { step: "3", icon: Zap, title: "Start Practicing", desc: "Questions load instantly — practice as much as you want!" },
                 ].map(s => (
                   <div key={s.step} className="flex gap-3 p-4 rounded-xl bg-background border border-border">
@@ -1086,7 +1086,7 @@ const loadPlatform = async (platform: SearchResult) => {
   )
 }
 
-// ── Series Card ────────────���────────────────────────────────────────────────
+// ── Series Card ────────────�����────────────────────────────────────────────────
 function SeriesCard({ series, onStart, searchQuery }: {
   series: DisplaySeries
   onStart: () => void
