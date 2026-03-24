@@ -666,7 +666,7 @@ const loadPlatform = async (platform: SearchResult) => {
         webBase: series._webBase || "",
         title: raw.title || raw.name || series.title,
       })
-      router.push(`/extract/series?${params.toString()}`)
+      router.push(`/test-series/series?${params.toString()}`)
     } else {
       const params = new URLSearchParams({
         slug: series.slug,
@@ -674,7 +674,7 @@ const loadPlatform = async (platform: SearchResult) => {
         webBase: "",
         title: series.title,
       })
-      router.push(`/extract/series?${params.toString()}`)
+      router.push(`/test-series/series?${params.toString()}`)
     }
   }
 
@@ -1086,7 +1086,7 @@ const loadPlatform = async (platform: SearchResult) => {
   )
 }
 
-// ── Series Card ─────────────────────────────────────────────────────────────
+// ── Series Card ────────────���────────────────────────────────────────────────
 function SeriesCard({ series, onStart, searchQuery }: {
   series: DisplaySeries
   onStart: () => void

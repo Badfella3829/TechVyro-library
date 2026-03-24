@@ -363,9 +363,9 @@ export default function ProfilePage() {
                     💳 {credits.credits} Credits Left
                   </span>
                 )}
-                <Link href="/extract">
+                <Link href="/test-series">
                   <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1.5">
-                    <Zap className="h-3.5 w-3.5" /> Extract Tests
+                    <Zap className="h-3.5 w-3.5" /> Test Series
                   </Button>
                 </Link>
               </div>

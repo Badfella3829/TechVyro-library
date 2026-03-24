@@ -50,7 +50,7 @@ function PlayContent() {
 
   useEffect(() => {
     if (!testId || !apiBase) {
-      router.replace("/extract")
+      router.replace("/test-series")
       return
     }
 
@@ -63,7 +63,7 @@ function PlayContent() {
     // Live tests need auth
     if (authLoading) return
     if (!user) {
-      const currentUrl = `/extract/play?${searchParams.toString()}`
+      const currentUrl = `/test-series/play?${searchParams.toString()}`
       router.replace(`/login?redirect=${encodeURIComponent(currentUrl)}`)
       return
     }

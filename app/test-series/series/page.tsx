@@ -63,7 +63,7 @@ function SeriesContent() {
 
   useEffect(() => {
     if (!slug || !apiBase) {
-      router.push("/extract")
+      router.push("/test-series")
       return
     }
     fetchData()
@@ -105,7 +105,7 @@ function SeriesContent() {
       title: test.title || test.name || "Test",
       duration: String(test.duration || test.time || 60),
     })
-    router.push(`/extract/play?${params}`)
+    router.push(`/test-series/play?${params}`)
   }
 
   const toggleSubject = (id: string) => {
