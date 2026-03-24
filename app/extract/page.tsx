@@ -595,7 +595,7 @@ _apiBase: data.apiBase || platform.api,
 const loadPlatform = async (platform: SearchResult) => {
   setShowDropdown(false)
   setPlatformQuery("")
-  setPlatformName("Loading Tests")
+  setPlatformName("") // Don't show platform name
   setLoading(true)
   setError("")
   setNotice("")
@@ -638,7 +638,7 @@ const loadPlatform = async (platform: SearchResult) => {
   _apiBase: data.apiBase,
   _webBase: data.webBase,
   } as DisplaySeries & { _raw: typeof s; _apiBase: string; _webBase: string }))
-  setPlatformName(`${mapped.length} Test Series`)
+  setPlatformName("") // Don't expose any names
   setLiveSeries(mapped)
   }
     } catch {
@@ -801,25 +801,31 @@ const loadPlatform = async (platform: SearchResult) => {
                 )}
               </div>
 {showDropdown && platformResults.length > 0 && !loading && (
-  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto">
-  {platformResults.map((r, i) => (
-  <button
-  key={i}
-  className="w-full text-left px-4 py-3 hover:bg-violet-50 transition-colors border-b border-gray-100 last:border-0 flex items-center gap-3"
-  onClick={() => loadPlatform(r)}
-  >
-  <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-  <GraduationCap className="h-4 w-4 text-violet-600" />
+  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-72 overflow-y-auto">
+    <div className="px-4 py-2 border-b border-gray-100 bg-gray-50">
+      <p className="text-xs font-medium text-gray-500">Found {platformResults.length} test series sources</p>
+    </div>
+    {platformResults.map((r, i) => {
+      const result = r as SearchResult & { category?: string; displayName?: string }
+      return (
+        <button
+          key={i}
+          className="w-full text-left px-4 py-3 hover:bg-violet-50 transition-colors border-b border-gray-100 last:border-0 flex items-center gap-3"
+          onClick={() => loadPlatform(r)}
+        >
+          <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+            <GraduationCap className="h-4 w-4 text-violet-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-gray-800">{result.displayName || result.category || "Test Series"}</p>
+            <p className="text-xs text-gray-500">Click to load tests</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+        </button>
+      )
+    })}
   </div>
-  <div>
-  <p className="font-semibold text-sm text-gray-800">Test Series Available</p>
-  <p className="text-xs text-gray-500">Click to load {platformResults.length > 1 ? `${i + 1} of ${platformResults.length}` : ''} tests</p>
-  </div>
-  <ChevronRight className="h-4 w-4 text-gray-400 ml-auto" />
-  </button>
-  ))}
-  </div>
-  )}
+)}
               {showDropdown && platformQuery.length >= 2 && platformResults.length === 0 && !platformLoading && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-gray-400" />
@@ -850,8 +856,8 @@ const loadPlatform = async (platform: SearchResult) => {
               <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4">
                 <Loader2 className="h-5 w-5 text-violet-600 animate-spin flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-violet-700">Loading {platformName}...</p>
-                  <p className="text-sm text-violet-600">Loading test series...</p>
+                  <p className="font-semibold text-violet-700">Loading Test Series...</p>
+                  <p className="text-sm text-violet-600">Fetching available tests and questions</p>
                 </div>
               </div>
             )}
@@ -876,22 +882,22 @@ const loadPlatform = async (platform: SearchResult) => {
           </div>
         )}
 
-{/* ── Live data header ── */}
-  {liveSeries && liveSeries.length > 0 && (
-  <div className="max-w-6xl mx-auto px-4 mt-4 flex items-center justify-between bg-green-50 border border-green-200 rounded-xl p-4">
-  <div>
-  <h2 className="text-lg font-bold flex items-center gap-2">
-  <GraduationCap className="h-5 w-5 text-green-600" />
-  Live Test Series Found
-  <span className="text-xs font-normal text-green-600 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">LIVE</span>
-  </h2>
-  <p className="text-sm text-muted-foreground">{liveSeries.length} test series available</p>
-  </div>
-  <button onClick={clearPlatform} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors border border-border rounded-lg px-3 py-1.5 bg-background">
-  <X className="h-3.5 w-3.5" /> Clear Search
-  </button>
-  </div>
-  )}
+{/* Live data header - no platform name shown */}
+        {liveSeries && liveSeries.length > 0 && (
+          <div className="max-w-6xl mx-auto px-4 mt-4 flex items-center justify-between bg-green-50 border border-green-200 rounded-xl p-4">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-green-600" />
+                Test Series Loaded
+                <span className="text-xs font-normal text-green-600 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">LIVE DATA</span>
+              </h2>
+              <p className="text-sm text-muted-foreground">{liveSeries.length} test series ready to attempt</p>
+            </div>
+            <button onClick={clearPlatform} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors border border-border rounded-lg px-3 py-1.5 bg-background">
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          </div>
+        )}
 
         {/* ── Recently Viewed ── */}
         {recentlyViewed.length > 0 && !liveSeries && !searchQuery && (
