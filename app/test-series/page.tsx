@@ -99,9 +99,23 @@ function TestSeriesContent() {
     try {
       const cat = category || selectedCategory
       
-      // Fetch test series from APX platforms via bulk mode
-      const res = await fetch(`/api/extract?bulk=true&category=${cat === "all" ? "ssc" : cat}`)
-      const data = await res.json()
+      // Try Supabase first (cached APX data)
+      let data = null
+      try {
+        const supabaseRes = await fetch(`/api/apx/sync?category=${cat === "all" ? "" : cat}&limit=50`)
+        const supabaseData = await supabaseRes.json()
+        if (supabaseData.success && supabaseData.testSeries?.length > 0) {
+          data = supabaseData
+        }
+      } catch {
+        // Supabase failed, will try live APX
+      }
+      
+      // Fall back to live APX fetch if Supabase has no data
+      if (!data || !data.testSeries?.length) {
+        const res = await fetch(`/api/extract?bulk=true&category=${cat === "all" ? "ssc" : cat}`)
+        data = await res.json()
+      }
       
       if (data.success && data.testSeries && data.testSeries.length > 0) {
         setTestSeries(data.testSeries.map((s: TestSeries, idx: number) => ({
@@ -109,7 +123,7 @@ function TestSeriesContent() {
           id: s.id || `series-${idx}`,
           category: s.category || cat,
         })))
-        setFetchError("")
+        setFetchError(data.source === "supabase" ? "" : (data.notice || ""))
       } else {
         setTestSeries([])
         setFetchError(data.notice || "No test series found")
@@ -543,8 +557,7 @@ function TestSeriesContent() {
   )
 }
 
-// Loading component for Suspense
-function LoadingFallback(): JSX.Element {
+function TestSeriesPageLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
@@ -552,10 +565,9 @@ function LoadingFallback(): JSX.Element {
   )
 }
 
-// Main page component - wrapped in Suspense for useSearchParams
-export default function TestSeriesPage(): JSX.Element {
+export default function Page() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<TestSeriesPageLoading />}>
       <TestSeriesContent />
     </Suspense>
   )
