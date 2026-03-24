@@ -451,16 +451,52 @@ function extractExamTags(title: string): string[] {
 }
 
 // ── Auto-fetch platforms (internal use only - names not displayed) ─────────
+// Expanded list covering all major exam categories
 const AUTO_PLATFORMS = [
+  // SSC Focused
   { api: "https://careerwillapi.classx.co.in", webBase: "https://careerwill.classx.co.in" },
-  { api: "https://exampurapi.classx.co.in",    webBase: "https://exampur.classx.co.in" },
-  { api: "https://adda247api.classx.co.in",    webBase: "https://adda247.classx.co.in" },
-  { api: "https://dronstudyapi.classx.co.in",  webBase: "https://dronstudy.classx.co.in" },
-  { api: "https://mahendrasapi.classx.co.in",  webBase: "https://mahendras.classx.co.in" },
-  { api: "https://studyiqapi.classx.co.in",    webBase: "https://studyiq.classx.co.in" },
+  { api: "https://exampurapi.classx.co.in", webBase: "https://exampur.classx.co.in" },
+  { api: "https://sscgurujiapi.classx.co.in", webBase: "https://sscguruji.classx.co.in" },
+  { api: "https://sscadda247api.classx.co.in", webBase: "https://sscadda247.classx.co.in" },
+  { api: "https://sscwaleapi.classx.co.in", webBase: "https://sscwale.classx.co.in" },
+  // Banking Focused
+  { api: "https://adda247api.classx.co.in", webBase: "https://adda247.classx.co.in" },
+  { api: "https://mahendrasapi.classx.co.in", webBase: "https://mahendras.classx.co.in" },
+  { api: "https://bankersaddaapi.classx.co.in", webBase: "https://bankersadda.classx.co.in" },
+  { api: "https://ibpsguideapi.classx.co.in", webBase: "https://ibpsguide.classx.co.in" },
+  { api: "https://bankingapi.classx.co.in", webBase: "https://banking.classx.co.in" },
+  // Defence Focused
+  { api: "https://ndacoachingapi.classx.co.in", webBase: "https://ndacoaching.classx.co.in" },
+  { api: "https://defenceacademyapi.classx.co.in", webBase: "https://defenceacademy.classx.co.in" },
+  { api: "https://achievecapfapi.classx.co.in", webBase: "https://achievecapf.classx.co.in" },
+  { api: "https://armyacademyapi.classx.co.in", webBase: "https://armyacademy.classx.co.in" },
+  // Railways Focused
+  { api: "https://railwayexamapi.classx.co.in", webBase: "https://railwayexam.classx.co.in" },
+  { api: "https://rrbntpcapi.classx.co.in", webBase: "https://rrbntpc.classx.co.in" },
+  { api: "https://railwaygurujiapi.classx.co.in", webBase: "https://railwayguruji.classx.co.in" },
+  // UPSC/State PCS
+  { api: "https://studyiqapi.classx.co.in", webBase: "https://studyiq.classx.co.in" },
+  { api: "https://vikiasacademyapi.classx.co.in", webBase: "https://vikiasacademy.classx.co.in" },
+  { api: "https://upscguruapi.classx.co.in", webBase: "https://upscguru.classx.co.in" },
+  { api: "https://iasprepapi.classx.co.in", webBase: "https://iasprep.classx.co.in" },
+  // JEE/NEET Focused
   { api: "https://physicswallahapi.classx.co.in", webBase: "https://physicswallah.classx.co.in" },
-  { api: "https://khangsapi.classx.co.in",     webBase: "https://khangs.classx.co.in" },
-  { api: "https://testbookapi.classx.co.in",   webBase: "https://testbook.classx.co.in" },
+  { api: "https://dronstudyapi.classx.co.in", webBase: "https://dronstudy.classx.co.in" },
+  { api: "https://aaborapi.classx.co.in", webBase: "https://aabor.classx.co.in" },
+  { api: "https://jeemainapi.classx.co.in", webBase: "https://jeemain.classx.co.in" },
+  { api: "https://neetprepapi.classx.co.in", webBase: "https://neetprep.classx.co.in" },
+  // Teaching Exams
+  { api: "https://ctetguruapi.classx.co.in", webBase: "https://ctetguru.classx.co.in" },
+  { api: "https://teachingexamapi.classx.co.in", webBase: "https://teachingexam.classx.co.in" },
+  { api: "https://supertetapi.classx.co.in", webBase: "https://supertet.classx.co.in" },
+  // General/Multi-category
+  { api: "https://testbookapi.classx.co.in", webBase: "https://testbook.classx.co.in" },
+  { api: "https://khangsapi.classx.co.in", webBase: "https://khangs.classx.co.in" },
+  { api: "https://unacademyapi.classx.co.in", webBase: "https://unacademy.classx.co.in" },
+  { api: "https://baborapi.classx.co.in", webBase: "https://babor.classx.co.in" },
+  { api: "https://gradeupapi.classx.co.in", webBase: "https://gradeup.classx.co.in" },
+  { api: "https://oliveboard api.classx.co.in", webBase: "https://oliveboard.classx.co.in" },
+  { api: "https://practicemockapi.classx.co.in", webBase: "https://practicemock.classx.co.in" },
 ]
 
 // Popular exam quick-search tags for the hero section
@@ -509,49 +545,73 @@ export default function ExtractPage() {
     return () => window.removeEventListener("error", handleError)
   }, [])
 
-  // Auto-fetch from real AppX APIs on page load
+  // Auto-fetch from real AppX APIs on page load (batched for performance)
   useEffect(() => {
     let cancelled = false
     const fetchAll = async () => {
       setAutoFetching(true)
       const found: (DisplaySeries & { _apiBase: string; _webBase: string; _raw: unknown })[] = []
 
-await Promise.allSettled(
-  AUTO_PLATFORMS.map(async (platform, idx) => {
-  try {
-  const params = new URLSearchParams({ apiUrl: platform.api, url: platform.webBase })
-            const res = await fetch(`/api/extract?${params}`)
-            if (!res.ok) return
-            const data = await res.json()
-if (!data.success || data.source === "sample" || !data.testSeries?.length) return
-  const mapped = (data.testSeries as Array<{ id?: string | number; title?: string; name?: string; slug?: string; description?: string; total_tests?: number }>)
-  .slice(0, 4)
-  .map((s, i) => {
-  const detectedCat = detectCategory(s.title || s.name || "")
-  return {
-  id: `live-${idx}-${s.id || i}`,
-  title: s.title || s.name || `Mock Test ${i + 1}`,
-  subtitle: s.description || "Complete preparation series with practice tests",
-  category: detectedCat,
-  examTags: extractExamTags(s.title || s.name || ""),
-  totalTests: s.total_tests || 10,
-  totalQuestions: (s.total_tests || 10) * 15,
-  duration: "60 min/test",
-  language: "Hindi + English",
-  slug: s.slug || String(s.id || i),
-  sampleCategory: "ssc-banking",
-  color: CAT_COLORS[detectedCat] || "#8b5cf6",
-  icon: "🎓",
-  badge: "LIVE" as const,
-_apiBase: data.apiBase || platform.api,
-  _webBase: data.webBase || platform.webBase,
-  _raw: s,
-  }
-  })
-            if (!cancelled) found.push(...mapped)
-          } catch { /* blocked/timeout — ignore */ }
-        })
-      )
+      // Process platforms in batches of 8 to avoid overwhelming the browser
+      const batchSize = 8
+      for (let i = 0; i < AUTO_PLATFORMS.length && !cancelled; i += batchSize) {
+        const batch = AUTO_PLATFORMS.slice(i, i + batchSize)
+        
+        const batchResults = await Promise.allSettled(
+          batch.map(async (platform, batchIdx) => {
+            const idx = i + batchIdx
+            try {
+              const params = new URLSearchParams({ apiUrl: platform.api, url: platform.webBase })
+              const res = await fetch(`/api/extract?${params}`, { 
+                signal: AbortSignal.timeout(12000) // 12 second timeout per request
+              })
+              if (!res.ok) return []
+              const data = await res.json()
+              if (!data.success || data.source === "sample" || !data.testSeries?.length) return []
+              
+              // Get up to 6 test series per platform for variety
+              return (data.testSeries as Array<{ id?: string | number; title?: string; name?: string; slug?: string; description?: string; total_tests?: number }>)
+                .slice(0, 6)
+                .map((s, seriesIdx) => {
+                  const detectedCat = detectCategory(s.title || s.name || "")
+                  return {
+                    id: `live-${idx}-${s.id || seriesIdx}`,
+                    title: s.title || s.name || `Mock Test ${seriesIdx + 1}`,
+                    subtitle: s.description || "Complete preparation series with practice tests",
+                    category: detectedCat,
+                    examTags: extractExamTags(s.title || s.name || ""),
+                    totalTests: s.total_tests || 10,
+                    totalQuestions: (s.total_tests || 10) * 15,
+                    duration: "60 min/test",
+                    language: "Hindi + English",
+                    slug: s.slug || String(s.id || seriesIdx),
+                    sampleCategory: "ssc-banking",
+                    color: CAT_COLORS[detectedCat] || "#8b5cf6",
+                    icon: "🎓",
+                    badge: "LIVE" as const,
+                    _apiBase: data.apiBase || platform.api,
+                    _webBase: data.webBase || platform.webBase,
+                    _raw: s,
+                  }
+                })
+            } catch { 
+              return [] 
+            }
+          })
+        )
+
+        // Collect successful results
+        for (const result of batchResults) {
+          if (result.status === "fulfilled" && Array.isArray(result.value)) {
+            found.push(...result.value)
+          }
+        }
+
+        // Update UI progressively after each batch
+        if (!cancelled && found.length > 0) {
+          setAutoLiveSeries([...found])
+        }
+      }
 
       if (!cancelled) {
         setAutoLiveSeries(found)

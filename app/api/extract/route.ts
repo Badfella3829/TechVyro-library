@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server"
 import { getAllSampleSeries, getSampleSeriesForCategory, mapUrlToCategory } from "@/lib/sample-tests"
+import platforms from "@/lib/appx-platforms.json"
+
+interface Platform {
+  name: string
+  api: string
+}
+
+const PLATFORM_LIST = platforms as Platform[]
 
 function deriveWebUrl(apiUrl: string): string {
-  // classx.co.in / appx.co.in: https://NAMEapi.classx.co.in → https://NAME.classx.co.in
   const classxMatch = apiUrl.match(/^(https?:\/\/)(\w+?)api\.(classx|appx)\.co\.in(.*)$/)
   if (classxMatch) return `${classxMatch[1]}${classxMatch[2]}.${classxMatch[3]}.co.in${classxMatch[4]}`
-  // Generic: https://api.NAME.com → https://NAME.com
   return apiUrl.replace(/^(https?:\/\/)api\./, "$1")
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 8000) {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 10000) {
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeout)
   try {
@@ -27,6 +33,8 @@ const HEADERS = {
   Accept: "application/json, text/html, */*",
   "Accept-Language": "en-IN,en;q=0.9,hi;q=0.8",
   "Cache-Control": "no-cache",
+  "Origin": "https://web.classx.co.in",
+  "Referer": "https://web.classx.co.in/",
 }
 
 function extractNextData(html: string): Record<string, unknown> | null {
@@ -40,18 +48,20 @@ function extractNextData(html: string): Record<string, unknown> | null {
 }
 
 function findTestSeries(data: unknown, depth = 0): unknown[] {
-  if (depth > 8 || !data) return []
+  if (depth > 10 || !data) return []
 
   if (Array.isArray(data) && data.length > 0) {
     const first = data[0] as Record<string, unknown>
     if (typeof first === "object" && first !== null) {
-      if ("title" in first || "name" in first || "slug" in first) return data as unknown[]
+      if ("title" in first || "name" in first || "slug" in first || "id" in first) {
+        return data as unknown[]
+      }
     }
   }
 
   if (typeof data === "object" && data !== null) {
     const obj = data as Record<string, unknown>
-    const keys = ["testSeries", "test_series", "series", "courses", "data", "results", "items", "pageProps"]
+    const keys = ["testSeries", "test_series", "series", "courses", "data", "results", "items", "pageProps", "batches", "contents", "folders"]
     for (const key of keys) {
       if (key in obj) {
         const result = findTestSeries(obj[key], depth + 1)
@@ -69,28 +79,7 @@ function findTestSeries(data: unknown, depth = 0): unknown[] {
   return []
 }
 
-// Clean test series data to remove any platform identifiers
-function cleanSeriesData(series: unknown[]): unknown[] {
-  return series.map((item, idx) => {
-    const s = item as Record<string, unknown>
-    return {
-      id: s.id || s.slug || `series-${idx}`,
-      title: cleanTitle(String(s.title || s.name || `Test Series ${idx + 1}`)),
-      slug: s.slug || String(s.id || idx),
-      description: cleanDescription(String(s.description || s.subtitle || "")),
-      total_tests: s.total_tests || s.test_count || s.totalTests || 10,
-      total_questions: s.total_questions || s.totalQuestions || 0,
-      duration: s.duration || s.time || 60,
-      is_free: s.is_free ?? true,
-      subjects: s.subjects || [],
-      category: s.category || detectCategoryFromTitle(String(s.title || s.name || "")),
-    }
-  })
-}
-
-// Remove platform names from titles
 function cleanTitle(title: string): string {
-  // Remove common platform suffixes/prefixes
   const platformPatterns = [
     /\s*by\s+\w+\s*(academy|classes|institute|coaching|edu|education|online|learning)?/gi,
     /\s*-\s*\w+\s*(academy|classes|institute|coaching|edu)?$/gi,
@@ -122,20 +111,162 @@ function detectCategoryFromTitle(title: string): string {
   return "general"
 }
 
+function cleanSeriesData(series: unknown[]): unknown[] {
+  return series.map((item, idx) => {
+    const s = item as Record<string, unknown>
+    return {
+      id: s.id || s.slug || `series-${idx}`,
+      title: cleanTitle(String(s.title || s.name || `Mock Test ${idx + 1}`)),
+      slug: s.slug || String(s.id || idx),
+      description: cleanDescription(String(s.description || s.subtitle || "")),
+      total_tests: s.total_tests || s.test_count || s.totalTests || s.testsCount || 10,
+      total_questions: s.total_questions || s.totalQuestions || 0,
+      duration: s.duration || s.time || 60,
+      is_free: s.is_free ?? true,
+      subjects: s.subjects || [],
+      category: s.category || detectCategoryFromTitle(String(s.title || s.name || "")),
+    }
+  })
+}
+
+// Try to fetch test series from a specific platform API
+async function tryFetchFromPlatform(apiUrl: string): Promise<unknown[] | null> {
+  const endpoints = [
+    `/api/v1/test-series/?format=json`,
+    `/api/v2/test-series/?format=json`,
+    `/api/v1/test-series/`,
+    `/api/v1/courses/?format=json`,
+    `/api/v1/batches/?format=json`,
+    `/api/v3/test-series/`,
+    `/api/v2/courses/`,
+  ]
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}${endpoint}`, { headers: HEADERS }, 8000)
+      if (res.ok) {
+        const text = await res.text()
+        try {
+          const json = JSON.parse(text)
+          const series = findTestSeries(json)
+          if (series.length > 0) {
+            return series
+          }
+        } catch {
+          // Not JSON, try next endpoint
+        }
+      }
+    } catch {
+      // Timeout or network error, try next
+    }
+  }
+  return null
+}
+
+// Try to scrape from web URL
+async function tryScrapeFromWeb(webUrl: string): Promise<unknown[] | null> {
+  const paths = ["/test-series", "/test-series/", "/courses", "/courses/", "/"]
+  
+  for (const path of paths) {
+    try {
+      const res = await fetchWithTimeout(`${webUrl}${path}`, { headers: HEADERS }, 8000)
+      if (res.ok) {
+        const html = await res.text()
+        const nextData = extractNextData(html)
+        if (nextData) {
+          const series = findTestSeries(nextData)
+          if (series.length > 0) {
+            return series
+          }
+        }
+      }
+    } catch {
+      // Continue to next path
+    }
+  }
+  return null
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const inputUrl = searchParams.get("url")?.trim()
-  // Direct API URL from appx.json database
   const directApiUrl = searchParams.get("apiUrl")?.trim()
+  const bulkMode = searchParams.get("bulk") === "true"
+  const category = searchParams.get("category")?.trim()
+
+  // Bulk mode: fetch from multiple platforms for a category
+  if (bulkMode && category) {
+    const categoryKeywords: Record<string, string[]> = {
+      ssc: ["ssc", "cgl", "chsl", "mts", "gd", "staff selection"],
+      banking: ["bank", "ibps", "sbi", "rbi", "clerk", "po"],
+      defence: ["nda", "cds", "defence", "army", "navy", "airforce", "capf"],
+      railways: ["railway", "rrb", "ntpc", "group d", "technician"],
+      upsc: ["upsc", "ias", "pcs", "civil services"],
+      teaching: ["ctet", "tet", "teacher", "kvs", "nvs"],
+      police: ["police", "constable", "si"],
+    }
+
+    const keywords = categoryKeywords[category] || [category]
+    const matchingPlatforms = PLATFORM_LIST.filter(p => 
+      keywords.some(kw => p.name.toLowerCase().includes(kw))
+    ).slice(0, 10)
+
+    const allSeries: unknown[] = []
+    
+    // Try to fetch from matching platforms in parallel (limit to 5 concurrent)
+    const fetchPromises = matchingPlatforms.slice(0, 5).map(async (platform) => {
+      try {
+        const series = await tryFetchFromPlatform(platform.api)
+        if (series && series.length > 0) {
+          return series.map(s => ({
+            ...(s as object),
+            _sourceApi: platform.api,
+            _sourceWeb: deriveWebUrl(platform.api),
+          }))
+        }
+      } catch {
+        // Ignore failures
+      }
+      return []
+    })
+
+    const results = await Promise.allSettled(fetchPromises)
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value.length > 0) {
+        allSeries.push(...result.value)
+      }
+    }
+
+    if (allSeries.length > 0) {
+      return NextResponse.json({
+        success: true,
+        testSeries: cleanSeriesData(allSeries),
+        source: "bulk",
+        count: allSeries.length,
+      })
+    }
+
+    // Fallback to sample tests
+    const sampleSeries = getSampleSeriesForCategory(category)
+    return NextResponse.json({
+      success: true,
+      testSeries: sampleSeries.map(s => ({
+        id: s.id, title: s.title, slug: s.slug,
+        description: s.description, total_tests: s.tests.length, isSample: true,
+      })),
+      source: "sample",
+      notice: "Showing practice tests.",
+    })
+  }
 
   if (!inputUrl && !directApiUrl) {
     return NextResponse.json({ error: "url or apiUrl required" }, { status: 400 })
   }
 
-  // Shortcut: if apiUrl starts with "sample:" return sample tests immediately
+  // Sample tests shortcut
   if (directApiUrl?.startsWith("sample:")) {
-    const category = directApiUrl.replace("sample:", "")
-    const sampleSeries = getSampleSeriesForCategory(category)
+    const cat = directApiUrl.replace("sample:", "")
+    const sampleSeries = getSampleSeriesForCategory(cat)
     const fallback = sampleSeries.length > 0 ? sampleSeries : getAllSampleSeries().slice(0, 3)
     const testSeries = fallback.map(s => ({
       id: s.id, title: s.title, slug: s.slug,
@@ -144,16 +275,15 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true, testSeries, source: "sample",
       apiBase: directApiUrl, webBase: inputUrl || "",
-      notice: "Showing sample practice tests.",
+      notice: "Showing practice tests.",
     })
   }
 
-  // Determine the API and web base URLs
+  // Determine URLs
   let apiUrl: string
   let webUrl: string
 
   if (directApiUrl) {
-    // Direct API URL from appx.json - most reliable path
     apiUrl = directApiUrl.replace(/\/$/, "")
     webUrl = deriveWebUrl(apiUrl)
   } else {
@@ -170,78 +300,43 @@ export async function GET(request: Request) {
     }
   }
 
-  console.log(`[Extract] Starting for apiUrl=${apiUrl} webUrl=${webUrl}`)
+  console.log(`[v0] Extract API: apiUrl=${apiUrl} webUrl=${webUrl}`)
 
-  // Try all AppX API endpoints in parallel
-  const tryEndpoint = async (url: string, type: "api" | "scrape"): Promise<{ series: unknown[]; type: string } | null> => {
-    try {
-      const res = await fetchWithTimeout(url, { headers: HEADERS }, 8000)
-      if (!res.ok) return null
-      const text = await res.text()
-      if (type === "api") {
-        const json = JSON.parse(text)
-        const series = findTestSeries(json)
-        return series.length > 0 ? { series, type: "api" } : null
-      } else {
-        const nextData = extractNextData(text)
-        if (nextData) {
-          const series = findTestSeries(nextData)
-          return series.length > 0 ? { series, type: "scrape" } : null
-        }
-        return null
-      }
-    } catch {
-      return null
-    }
+  // Try API first, then web scraping
+  let series = await tryFetchFromPlatform(apiUrl)
+  
+  if (!series || series.length === 0) {
+    series = await tryScrapeFromWeb(webUrl)
   }
 
-  const allAttempts = [
-    tryEndpoint(`${apiUrl}/api/v1/test-series/?format=json`, "api"),
-    tryEndpoint(`${apiUrl}/api/v2/test-series/?format=json`, "api"),
-    tryEndpoint(`${apiUrl}/api/v1/test-series/`, "api"),
-    tryEndpoint(`${apiUrl}/api/v1/courses/?format=json`, "api"),
-    tryEndpoint(`${webUrl}/test-series/`, "scrape"),
-    tryEndpoint(`${webUrl}/courses/`, "scrape"),
-  ]
-
-  const results = await Promise.allSettled(allAttempts)
-  for (const result of results) {
-    if (result.status === "fulfilled" && result.value) {
-      const { series, type } = result.value
-      const cleanedSeries = cleanSeriesData(series)
-      console.log(`[Extract] Found ${cleanedSeries.length} series via ${type}`)
-      return NextResponse.json({ 
-        success: true, 
-        testSeries: cleanedSeries, 
-        source: type, 
-        apiBase: apiUrl, 
-        webBase: webUrl 
-      })
-    }
+  if (series && series.length > 0) {
+    const cleanedSeries = cleanSeriesData(series)
+    console.log(`[v0] Found ${cleanedSeries.length} series`)
+    return NextResponse.json({
+      success: true,
+      testSeries: cleanedSeries,
+      source: "live",
+      apiBase: apiUrl,
+      webBase: webUrl,
+    })
   }
 
-  console.log(`[Extract] All direct methods failed, using sample tests`)
+  console.log(`[v0] No series found, using sample tests`)
 
-  // Fallback: return sample tests matching the platform category
-  const category = mapUrlToCategory(webUrl)
-  const sampleSeries = getSampleSeriesForCategory(category)
+  // Fallback to sample tests
+  const cat = mapUrlToCategory(webUrl)
+  const sampleSeries = getSampleSeriesForCategory(cat)
   const fallback = sampleSeries.length > 0 ? sampleSeries : getAllSampleSeries().slice(0, 3)
-
-  const testSeries = fallback.map(s => ({
-    id: s.id,
-    title: s.title,
-    slug: s.slug,
-    description: s.description,
-    total_tests: s.tests.length,
-    isSample: true,
-  }))
 
   return NextResponse.json({
     success: true,
-    testSeries,
+    testSeries: fallback.map(s => ({
+      id: s.id, title: s.title, slug: s.slug,
+      description: s.description, total_tests: s.tests.length, isSample: true,
+    })),
     source: "sample",
-    apiBase: `sample:${category}`,
+    apiBase: `sample:${cat}`,
     webBase: webUrl,
-    notice: "Showing sample practice tests.",
+    notice: "Showing practice tests.",
   })
 }

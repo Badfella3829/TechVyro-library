@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   ArrowLeft, Loader2, BookOpen, Play, Clock, FileText,
-  ChevronDown, ChevronUp, AlertCircle, GraduationCap
+  ChevronDown, ChevronUp, AlertCircle
 } from "lucide-react"
 
 interface Subject {
