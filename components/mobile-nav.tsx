@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, BookOpen, Zap, Trophy, User, FileCheck } from "lucide-react"
+import { Home, BookOpen, Zap, User, FileCheck } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const navItems = [
   { icon: Home,      label: "Home",   href: "/" },
