@@ -543,7 +543,8 @@ function TestSeriesContent() {
   )
 }
 
-function LoadingFallback() {
+// Loading component for Suspense
+function LoadingFallback(): JSX.Element {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
@@ -551,7 +552,8 @@ function LoadingFallback() {
   )
 }
 
-export default function TestSeriesPage() {
+// Main page component - wrapped in Suspense for useSearchParams
+export default function TestSeriesPage(): JSX.Element {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <TestSeriesContent />
