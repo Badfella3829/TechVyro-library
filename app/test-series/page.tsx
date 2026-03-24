@@ -92,14 +92,48 @@ function TestSeriesContent() {
     
     try {
       const cat = category || selectedCategory
-      const params = new URLSearchParams()
       
-      if (cat && cat !== "all") {
-        params.set("bulk", "true")
-        params.set("category", cat)
+      // For "all" category, fetch from multiple categories in parallel
+      if (!cat || cat === "all") {
+        const categories = ["ssc", "banking", "defence", "railways"]
+        const results = await Promise.allSettled(
+          categories.map(c => 
+            fetch(`/api/extract?bulk=true&category=${c}`)
+              .then(r => r.json())
+              .then(data => ({
+                category: c,
+                series: (data.testSeries || []).slice(0, 3).map((s: TestSeries) => ({
+                  ...s,
+                  category: c,
+                  _sourceApi: data.apiBase || s._sourceApi,
+                  _sourceWeb: data.webBase || s._sourceWeb,
+                }))
+              }))
+          )
+        )
+        
+        const allSeries: TestSeries[] = []
+        for (const result of results) {
+          if (result.status === "fulfilled" && result.value.series.length > 0) {
+            allSeries.push(...result.value.series)
+          }
+        }
+        
+        if (allSeries.length > 0) {
+          setTestSeries(allSeries.map((s, idx) => ({ ...s, id: s.id || `series-${idx}` })))
+          setFetchError("")
+        } else {
+          setTestSeries([])
+          setFetchError("Showing practice tests")
+        }
+        return
       }
       
-      // Try fetching from multiple sources
+      // Single category fetch
+      const params = new URLSearchParams()
+      params.set("bulk", "true")
+      params.set("category", cat)
+      
       const res = await fetch(`/api/extract?${params}`)
       const data = await res.json()
       
@@ -107,14 +141,15 @@ function TestSeriesContent() {
         const series = data.testSeries.map((s: TestSeries, idx: number) => ({
           ...s,
           id: s.id || `series-${idx}`,
+          category: s.category || cat,
           _sourceApi: data.apiBase || s._sourceApi,
           _sourceWeb: data.webBase || s._sourceWeb,
         }))
         setTestSeries(series)
+        setFetchError("")
       } else {
-        // Fallback to sample tests if no live data
         setTestSeries([])
-        setFetchError(data.notice || "Using practice tests")
+        setFetchError(data.notice || "Showing practice tests")
       }
     } catch (err) {
       console.error("[v0] Error fetching test series:", err)
