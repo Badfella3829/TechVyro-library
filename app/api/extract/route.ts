@@ -9,6 +9,10 @@ interface Platform {
 
 const PLATFORM_LIST = platforms as Platform[]
 
+// Simple in-memory cache: key = category, value = {data, timestamp}
+const bulkCache = new Map<string, { data: unknown; ts: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 function deriveWebUrl(apiUrl: string): string {
   const classxMatch = apiUrl.match(/^(https?:\/\/)(\w+?)api\.(classx|appx)\.co\.in(.*)$/)
   if (classxMatch) return `${classxMatch[1]}${classxMatch[2]}.${classxMatch[3]}.co.in${classxMatch[4]}`
@@ -199,6 +203,15 @@ export async function GET(request: Request) {
 
   // Bulk mode: fetch from APX platforms and return test series
   if (bulkMode) {
+    // Check cache first
+    const cacheKey = category || "all"
+    const cached = bulkCache.get(cacheKey)
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return NextResponse.json(cached.data, {
+        headers: { "X-Cache": "HIT", "Cache-Control": "no-store" }
+      })
+    }
+
     // Get sample series for this category as base
     const sampleSeries = category ? getSampleSeriesForCategory(category) : getAllSampleSeries()
     const baseSeries = sampleSeries.length > 0 ? sampleSeries : getAllSampleSeries()
@@ -223,9 +236,9 @@ export async function GET(request: Request) {
     // APX platforms use Next.js and store data in __NEXT_DATA__ script tag
     const liveSeries: unknown[] = []
     
-    // Fetch from MORE platforms (30-50) for better coverage
+    // Fetch from MORE platforms for better coverage
     const shuffledPlatforms = [...PLATFORM_LIST].sort(() => Math.random() - 0.5)
-    const platformsToTry = shuffledPlatforms.slice(0, 50) // Increased to 50 platforms
+    const platformsToTry = shuffledPlatforms.slice(0, 100) // Try 100 platforms in parallel
 
     // Fetch from platforms in parallel - try both API and web scraping
     const fetchPromises = platformsToTry.map(async (platform) => {
@@ -234,10 +247,10 @@ export async function GET(request: Request) {
       // Try multiple methods to get data
       try {
         // Method 1: Try web scraping first (most reliable for APX platforms)
-        const webPaths = ["/test-series/", "/test-series", "/courses/", "/"]
+        const webPaths = ["/test-series/", "/test-series"]
         for (const path of webPaths) {
           try {
-            const res = await fetchWithTimeout(`${webUrl}${path}`, { headers: HEADERS }, 4000)
+            const res = await fetchWithTimeout(`${webUrl}${path}`, { headers: HEADERS }, 2500)
             if (res.ok) {
               const html = await res.text()
               const nextData = extractNextData(html)
@@ -268,7 +281,7 @@ export async function GET(request: Request) {
         ]
         for (const endpoint of apiEndpoints) {
           try {
-            const res = await fetchWithTimeout(`${platform.api}${endpoint}`, { headers: HEADERS }, 4000)
+            const res = await fetchWithTimeout(`${platform.api}${endpoint}`, { headers: HEADERS }, 2500)
             if (res.ok) {
               const json = await res.json()
               const series = findTestSeries(json)
@@ -313,25 +326,29 @@ export async function GET(request: Request) {
 
     // If we got live data, combine with samples
     if (cleanedLive.length > 0) {
-      return NextResponse.json({
+      const responseData = {
         success: true,
         testSeries: [...cleanedLive, ...formattedSamples],
         source: "apx-live",
         count: cleanedLive.length + formattedSamples.length,
         liveCount: cleanedLive.length,
         platformsChecked: platformsToTry.length,
-      })
+      }
+      bulkCache.set(cacheKey, { data: responseData, ts: Date.now() })
+      return NextResponse.json(responseData)
     }
 
     // No live data, return samples only
-    return NextResponse.json({
+    const sampleData = {
       success: true,
       testSeries: formattedSamples,
       source: "sample",
       count: formattedSamples.length,
       liveCount: 0,
       notice: "Showing practice tests",
-    })
+    }
+    bulkCache.set(cacheKey, { data: sampleData, ts: Date.now() })
+    return NextResponse.json(sampleData)
   }
 
   if (!inputUrl && !directApiUrl) {
