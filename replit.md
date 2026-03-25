@@ -3,16 +3,27 @@
 A Next.js 15 PDF library and quiz platform with admin dashboard, user accounts, AppX test extractor, and smart student features. Hosted on Replit with Supabase backend.
 
 ## AppX Test Extractor
-Full integration of test-series extraction from 2421 classx.co.in coaching platforms:
-- **`/extract`** — Search-driven UI; autocomplete from `lib/appx-platforms.json` (2421 platforms); popular platforms grid; no manual URL entry needed
+Full integration of test-series extraction from 9686 APX platforms:
+- **`/extract`** — Search-driven UI; autocomplete from `lib/appx-platforms.json` (9686 platforms); popular platforms grid
 - **`/extract/series`** — Shows real live test titles from classx.co.in scraping; no login/credits required to play
 - **`/extract/play`** — Plays test using `QuizPlayer` component (timer, scoring, explanations)
 - **`/api/extract/route.ts`** — Parallel fetch with `__NEXT_DATA__` scraping; `deriveWebUrl()` converts API→web URL; sample fallback
 - **`/api/extract/tests/route.ts`** — Fetches real tests by series slug from classx.co.in; handles `sample:` prefix
 - **`/api/extract/questions/route.ts`** — Parallel 3s timeout on 7 endpoints → category-based sample fallback when live fails
 - **`/api/extract/search/route.ts`** — Searches appx-platforms.json by platform name for autocomplete
-- **`lib/appx-platforms.json`** — 2421 classx.co.in platforms with API URLs
+- **`lib/appx-platforms.json`** — 9686 classx.co.in/appx.co.in platforms with API URLs
 - **`lib/sample-tests.ts`** — Sample questions for NDA, JEE, SSC, Banking, Railways, CTET; `mapUrlToCategory()` and `getSampleSeriesForCategory()`
+
+### New APIs (March 2026)
+- **`/api/platforms/search`** — Fast search across all 9686 APX platforms; returns name, api, web URL; supports `?q=query&limit=n`
+- **`/api/quiz-html`** — Serves fully self-contained quiz HTML page using `public/quiz-template.html` template; fetches raw questions from APX API (option_1/option_2 format); falls back to 25 sample questions; params: `testId`, `apiBase`, `title`, `seriesTitle`, `duration`
+- **`public/quiz-template.html`** — 2208-line Bootstrap quiz UI template with timer, submit, score analysis; placeholders: `{json_data}`, `{test_time}`, `{test_name}`, `{test_series_name}`, `{website_url}`
+
+### /test-series Page (Updated)
+- Platform search autocomplete bar at top — searches all 9686 platforms in real time
+- When a platform is selected, fetches its specific test series via `/api/extract`
+- Each series card has two buttons: **Browse** (series list) and **Quiz** (opens quiz HTML in new tab)
+- Category filter pills + text search work as before for bulk discovery mode
 
 ### Live Extraction Status
 - **Test series titles**: Work live from classx.co.in via `__NEXT_DATA__` scraping (~1.6s)
