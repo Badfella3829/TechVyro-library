@@ -37,6 +37,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = []
   const lines = text.split("\n")
   let i = 0
+  let k = 0
 
   while (i < lines.length) {
     const line = lines[i]
@@ -52,7 +53,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
         i++
       }
       nodes.push(
-        <div key={i} className="mt-2 mb-1 rounded-lg overflow-hidden border border-violet-200/40 dark:border-violet-700/30">
+        <div key={k++} className="mt-2 mb-1 rounded-lg overflow-hidden border border-violet-200/40 dark:border-violet-700/30">
           {lang && (
             <div className="bg-violet-100/60 dark:bg-violet-900/40 px-2.5 py-0.5 text-[9px] font-mono font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
               {lang}
@@ -70,7 +71,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     // Inline code (single line)
     if (trimmed.match(/^`[^`]+`$/)) {
       nodes.push(
-        <code key={i} className="block mt-1 px-2 py-1 bg-slate-100 dark:bg-slate-800/60 rounded text-[10px] font-mono text-violet-700 dark:text-violet-300">
+        <code key={k++} className="block mt-1 px-2 py-1 bg-slate-100 dark:bg-slate-800/60 rounded text-[10px] font-mono text-violet-700 dark:text-violet-300">
           {trimmed.slice(1, -1)}
         </code>
       )
@@ -81,7 +82,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     // Heading ##
     if (trimmed.startsWith("## ")) {
       nodes.push(
-        <p key={i} className="mt-2 mb-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wide">
+        <p key={k++} className="mt-2 mb-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wide">
           {trimmed.slice(3)}
         </p>
       )
@@ -89,7 +90,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     }
     if (trimmed.startsWith("# ")) {
       nodes.push(
-        <p key={i} className="mt-2 mb-0.5 text-[12px] font-bold text-foreground">
+        <p key={k++} className="mt-2 mb-0.5 text-[12px] font-bold text-foreground">
           {trimmed.slice(2)}
         </p>
       )
@@ -98,20 +99,20 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
     // Horizontal rule
     if (trimmed === "---" || trimmed === "***") {
-      nodes.push(<hr key={i} className="my-1.5 border-border/30" />)
+      nodes.push(<hr key={k++} className="my-1.5 border-border/30" />)
       i++; continue
     }
 
     // Empty line
     if (!trimmed) {
-      nodes.push(<div key={i} className="h-1" />)
+      nodes.push(<div key={k++} className="h-1" />)
       i++; continue
     }
 
     // Bullet list
     if (trimmed.startsWith("- ") || trimmed.startsWith("• ") || trimmed.startsWith("* ")) {
       nodes.push(
-        <div key={i} className="flex gap-1.5 mt-0.5">
+        <div key={k++} className="flex gap-1.5 mt-0.5">
           <span className="text-violet-500 dark:text-violet-400 shrink-0 font-bold mt-px leading-tight">•</span>
           <span className="leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(trimmed.replace(/^[-•*]\s+/, "")) }} />
         </div>
@@ -123,7 +124,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     const numMatch = trimmed.match(/^(\d+)\.\s+(.+)$/)
     if (numMatch) {
       nodes.push(
-        <div key={i} className="flex gap-1.5 mt-0.5">
+        <div key={k++} className="flex gap-1.5 mt-0.5">
           <span className="text-violet-600 dark:text-violet-400 shrink-0 font-bold text-[10px] min-w-[14px] mt-0.5 leading-tight">{numMatch[1]}.</span>
           <span className="leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(numMatch[2]) }} />
         </div>
@@ -133,7 +134,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
     // Regular paragraph
     nodes.push(
-      <p key={i} className="mt-0.5 leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(trimmed) }} />
+      <p key={k++} className="mt-0.5 leading-relaxed text-[11px]" dangerouslySetInnerHTML={{ __html: inlineFormat(trimmed) }} />
     )
     i++
   }

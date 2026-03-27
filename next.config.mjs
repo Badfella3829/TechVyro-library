@@ -3,6 +3,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  allowedDevOrigins: ["*.janeway.replit.dev", "*.replit.dev", "*.repl.co"],
   images: {
     unoptimized: true,
   },
