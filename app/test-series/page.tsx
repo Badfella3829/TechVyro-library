@@ -281,7 +281,7 @@ export default function TestSeriesPage() {
             <Button
               onClick={() => openQuiz(test)}
               size="sm"
-              className="flex-1 h-9 text-xs font-semibold gap-1.5"
+              className="flex-1 h-10 text-xs font-semibold gap-1.5"
               style={{ backgroundColor: color }}
             >
               <Play className="h-3.5 w-3.5 fill-current" />
@@ -291,7 +291,7 @@ export default function TestSeriesPage() {
               onClick={() => browseSeries(test)}
               size="sm"
               variant="outline"
-              className="h-9 px-3 text-xs border-border/60 hover:bg-muted/50"
+              className="h-10 w-10 p-0 border-border/60 hover:bg-muted/50 shrink-0"
               title="Browse individual tests"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -410,24 +410,27 @@ export default function TestSeriesPage() {
 
             {/* Category pills */}
             {!selectedPlatform && (
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {CATEGORIES.map(cat => {
-                  const Icon = cat.icon
-                  const active = selectedCategory === cat.id
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => handleCategoryChange(cat.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
-                        active ? "text-white border-transparent" : "bg-background border-border/50 hover:border-border"
-                      }`}
-                      style={active ? { backgroundColor: cat.color } : {}}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {cat.label}
-                    </button>
-                  )
-                })}
+              <div className="relative">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                  {CATEGORIES.map(cat => {
+                    const Icon = cat.icon
+                    const active = selectedCategory === cat.id
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => handleCategoryChange(cat.id)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-all shrink-0 ${
+                          active ? "text-white border-transparent" : "bg-background border-border/50 hover:border-border"
+                        }`}
+                        style={active ? { backgroundColor: cat.color } : {}}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {cat.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-background to-transparent" />
               </div>
             )}
           </div>

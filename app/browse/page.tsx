@@ -290,7 +290,7 @@ export default function BrowsePage() {
                   <DrawerTrigger asChild>
                     <button className="lg:hidden relative h-10 px-3 rounded-xl border border-border/60 bg-background flex items-center gap-1.5 text-sm font-medium text-foreground hover:bg-muted/60 transition-colors shrink-0 ml-auto">
                       <SlidersHorizontal className="h-4 w-4" />
-                      <span className="hidden sm:inline">Filters</span>
+                      <span>Filters</span>
                       {hasFilter && (
                         <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
                           !

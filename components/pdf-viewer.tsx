@@ -222,9 +222,9 @@ export function PDFViewer({ pdf, relatedPDFs = [] }: PDFViewerProps) {
         <span>Back to Library</span>
       </Link>
 
-      <div className="grid gap-5 sm:gap-8 md:grid-cols-3">
+      <div className="grid gap-5 sm:gap-8 lg:grid-cols-3">
         {/* Sidebar */}
-        <div className="md:col-span-1 space-y-4">
+        <div className="lg:col-span-1 space-y-4">
           <Card className="border-border/50 overflow-hidden shadow-lg">
             <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${categoryColor}, ${categoryColor}88)` }} />
 
@@ -380,7 +380,7 @@ export function PDFViewer({ pdf, relatedPDFs = [] }: PDFViewerProps) {
         </div>
 
         {/* PDF Preview Panel */}
-        <Card className="md:col-span-2 border-border/50 overflow-hidden shadow-xl">
+        <Card className="lg:col-span-2 border-border/50 overflow-hidden shadow-xl">
           <CardContent className="p-0">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-muted/60 to-muted/30">
               <div className="flex items-center gap-3">

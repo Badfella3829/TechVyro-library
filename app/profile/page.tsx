@@ -517,7 +517,7 @@ export default function ProfilePage() {
                           {r.quiz_id && (
                             <Link
                               href={`/quiz/${r.quiz_id}`}
-                              className="text-[11px] text-primary font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-0.5 mt-0.5"
+                              className="text-[11px] text-primary font-semibold flex items-center justify-end gap-0.5 mt-0.5 hover:underline"
                             >
                               Retry <ChevronRight className="h-3 w-3" />
                             </Link>
@@ -568,7 +568,7 @@ export default function ProfilePage() {
                             </span>
                           </div>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
+                        <ChevronRight className="h-4 w-4 text-primary/40 shrink-0 mt-0.5" />
                       </Link>
                     ))}
                   </div>

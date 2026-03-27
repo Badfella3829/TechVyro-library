@@ -111,7 +111,7 @@ export function Footer() {
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               Quick Links
             </h3>
-            <ul className="space-y-3 text-sm text-muted-foreground">
+            <ul className="space-y-1 text-sm text-muted-foreground">
               {quickLinks.map((link) => (
                 <li key={link.name}>
                   {link.external ? (
@@ -119,17 +119,17 @@ export function Footer() {
                       href={link.href} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 hover:text-primary hover:translate-x-1 transition-all duration-200"
+                      className="inline-flex items-center gap-2 py-1.5 hover:text-primary hover:translate-x-1 transition-all duration-200"
                     >
-                      <span className="h-px w-3 bg-border" />
+                      <span className="h-px w-3 bg-border shrink-0" />
                       {link.name}
                     </a>
                   ) : (
                     <Link 
                       href={link.href}
-                      className="inline-flex items-center gap-2 hover:text-primary hover:translate-x-1 transition-all duration-200"
+                      className="inline-flex items-center gap-2 py-1.5 hover:text-primary hover:translate-x-1 transition-all duration-200"
                     >
-                      <span className="h-px w-3 bg-border" />
+                      <span className="h-px w-3 bg-border shrink-0" />
                       {link.name}
                     </Link>
                   )}
