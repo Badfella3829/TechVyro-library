@@ -13,10 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, Loader2, BookOpen, Play, Clock, FileText,
   ChevronDown, ChevronUp, AlertCircle, Lock, Search, X,
-  CheckCircle2, Trophy, Zap, LayoutGrid, List, ExternalLink,
+  CheckCircle2, Trophy, Zap, LayoutGrid, List,
   SortAsc, Filter, Star, RefreshCw, TrendingUp
 } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
+import { AuthModal } from "@/components/auth-modal"
 
 const ATTEMPT_KEY = "techvyro_test_attempts"
 
@@ -97,7 +99,9 @@ function SeriesContent() {
   const [attempts, setAttempts] = useState<Record<string, AttemptRecord>>({})
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [expandAll, setExpandAll] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
+  const { user } = useAuth()
   const isSample = apiBase.startsWith("sample:")
 
   useEffect(() => {
@@ -137,6 +141,7 @@ function SeriesContent() {
   }
 
   const startTest = (test: Test) => {
+    if (!user && !isSample && !test.is_free) { setShowAuthModal(true); return }
     const testId = String(test.id || test.slug || "")
     recordAttempt(testId)
     setAttempts(getAttempts())
@@ -144,6 +149,7 @@ function SeriesContent() {
       testId,
       apiBase,
       title: test.title || test.name || "Test",
+      platform: seriesTitle,
       duration: String(test.duration || test.time || 60),
     })
     router.push(`/test-series/play?${params}`)
@@ -194,6 +200,9 @@ function SeriesContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {showAuthModal && (
+        <AuthModal onClose={() => setShowAuthModal(false)} />
+      )}
       <Header />
       <main className="flex-1 w-full">
 

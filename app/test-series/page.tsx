@@ -225,15 +225,17 @@ export default function TestSeriesPage() {
   }, [mockTests, search, sortBy])
 
   const openQuiz = useCallback((test: MockTest) => {
+    if (!user) { setShowAuthModal(true); return }
     const params = new URLSearchParams({
       testId: test.slug || test.id,
       apiBase: test._sourceApi || `sample:${test.category || "ssc"}`,
       title: test.title,
       seriesTitle: test._platformName || "APX Mock Test",
+      platform: test._platformName || "APX",
       duration: String(test.duration || 60),
     })
-    window.open(`/api/quiz-html?${params}`, "_blank")
-  }, [])
+    router.push(`/test-series/play?${params}`)
+  }, [user, router])
 
   const browseSeries = useCallback((test: MockTest) => {
     const params = new URLSearchParams({
@@ -337,7 +339,7 @@ export default function TestSeriesPage() {
               className="h-10 w-10 p-0 border-border/60 hover:bg-muted/50 shrink-0"
               title="Browse individual tests"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -386,8 +388,8 @@ export default function TestSeriesPage() {
           <Button size="sm" onClick={() => openQuiz(test)} className="h-8 px-3 text-xs gap-1" style={{ backgroundColor: color }}>
             <Play className="h-3 w-3 fill-current" /> Start
           </Button>
-          <Button size="sm" variant="outline" onClick={() => browseSeries(test)} className="h-8 w-8 p-0 border-border/60">
-            <ExternalLink className="h-3.5 w-3.5" />
+          <Button size="sm" variant="outline" onClick={() => browseSeries(test)} className="h-8 w-8 p-0 border-border/60" title="Browse series">
+            <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>
       </Card>
@@ -576,9 +578,7 @@ export default function TestSeriesPage() {
               <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
                 <Database className="h-4 w-4 text-violet-600" />
                 <span className="text-sm font-semibold text-violet-700">{selectedPlatform.name}</span>
-                <a href={selectedPlatform.web} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-600">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                <ExternalLink className="h-3.5 w-3.5 text-violet-400" />
               </div>
               <button onClick={clearPlatform} className="text-xs text-muted-foreground hover:text-foreground underline">
                 Show all
