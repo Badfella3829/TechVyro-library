@@ -144,8 +144,27 @@ Components that fetch from API:
 - **Quiz Result Alert**: Fired from `/api/quiz-results` POST after result saved. Includes student name, quiz title, score/percentage, time taken.
 - **Config**: Admin sets `telegramChatId` in Admin > Settings > Notifications. Bot token comes from `TELEGRAM_BOT_TOKEN` env secret.
 
+### Admin Power Tools (Added March 2026)
+- **`/admin` → "Power Tools" tab** — New AI-powered tab in the admin sidebar
+- **Content Health Dashboard**: Shows health score (0-100), PDFs missing description/category/tags, visibility breakdown (public/unlisted/private)
+- **AI Batch Enhancement**: One-click AI generation of descriptions and tags for all PDFs (up to 30/run) using GPT-4o mini. Modes: descriptions only, tags only, or both.
+- **Export PDF Catalog**: Download full PDF library as CSV or JSON with all metadata fields
+- **Bulk Visibility Control**: Change visibility of all/private/unlisted PDFs in one click
+- **Action Items Widget**: Automatically highlights what needs fixing with direct "Fix with AI" buttons
+- **`/api/pdfs/batch-ai`** — GET (health stats), POST (batch AI), PATCH (bulk visibility)
+- **`/api/pdfs/[id]`** — Enhanced to support `visibility`, `tags`, `allow_download` in PATCH updates
+
+### Enhanced PDF List (March 2026)
+- **Full inline editing**: Edit title, category, description, tags, visibility, allow_download in one panel
+- **Visibility badge**: PDFs with private/unlisted status show a color-coded badge in the list
+- **Quick toggle**: Click the visibility badge to cycle through public → private → unlisted
+- **Tags display**: Tags shown in the PDF row for at-a-glance info
+- **Description preview**: First line of description visible in the list
+
 ### Key Components
-- `app/admin/page.tsx` — Admin dashboard with tabs
+- `app/admin/page.tsx` — Admin dashboard with tabs (now includes Power Tools)
+- `components/admin/tools-manager.tsx` — Power Tools: AI batch, health dashboard, export, bulk visibility
+- `components/admin/pdf-list.tsx` — Enhanced with full inline editing and visibility controls
 - `components/admin/folder-manager.tsx` — Manage content folder hierarchy
 - `components/admin/homepage-manager.tsx` — Featured PDFs, announcements, hero, testimonials
 - `components/admin/site-settings.tsx` — General site settings

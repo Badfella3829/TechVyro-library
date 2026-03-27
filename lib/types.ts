@@ -28,6 +28,9 @@ export interface PDF {
   review_count: number
   created_at: string
   updated_at: string
+  visibility?: "public" | "unlisted" | "private"
+  allow_download?: boolean
+  tags?: string[] | null
   category?: Category | null
   reviews?: Review[]
 }

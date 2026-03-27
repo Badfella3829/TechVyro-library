@@ -9,7 +9,7 @@ import {
   TrendingUp, Download, Eye, Star, Clock, Users, Zap, HardDrive,
   Activity, AlertCircle, Home, History, Menu, X, ChevronRight,
   BookOpen, Layers, Shield, Bell, Search, Moon, Sun, CheckCircle2,
-  AlertTriangle, Info, ArrowUpRight, ArrowDownRight, Minus
+  AlertTriangle, Info, ArrowUpRight, ArrowDownRight, Minus, Wand2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,6 +49,9 @@ const FolderManager = dynamic(() => import("@/components/admin/folder-manager").
 const QuizManager = dynamic(() => import("@/components/admin/quiz-manager").then(m => ({ default: m.QuizManager })), {
   loading: () => <ComponentLoader text="Loading quiz manager..." />,
 })
+const ToolsManager = dynamic(() => import("@/components/admin/tools-manager").then(m => ({ default: m.ToolsManager })), {
+  loading: () => <ComponentLoader text="Loading power tools..." />,
+})
 
 function ComponentLoader({ text }: { text: string }) {
   return (
@@ -65,6 +68,7 @@ const NAV_ITEMS = [
   { id: "structure", label: "Structure", icon: Layers, group: "content" },
   { id: "categories", label: "Categories", icon: Database, group: "content" },
   { id: "quizzes", label: "Quizzes", icon: Zap, group: "content" },
+  { id: "tools", label: "Power Tools", icon: Wand2, group: "content" },
   { id: "reviews", label: "Reviews", icon: MessageSquare, group: "engagement" },
   { id: "homepage", label: "Homepage", icon: Home, group: "engagement" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "insights" },
@@ -382,6 +386,7 @@ export default function AdminPage() {
                       { label: "Upload New PDF", icon: Upload, tab: "upload", color: "text-primary" },
                       { label: "Add Category", icon: FolderPlus, tab: "categories", color: "text-accent" },
                       { label: "Manage Quizzes", icon: Zap, tab: "quizzes", color: "text-amber-500" },
+                      { label: "Power Tools (AI)", icon: Wand2, tab: "tools", color: "text-violet-500" },
                       { label: "Moderate Reviews", icon: MessageSquare, tab: "reviews", color: "text-green-500" },
                       { label: "View Analytics", icon: BarChart3, tab: "analytics", color: "text-blue-500" },
                       { label: "Site Settings", icon: Settings, tab: "settings", color: "text-purple-500" },
@@ -802,6 +807,11 @@ export default function AdminPage() {
           {/* ── Activity ── */}
           {activeTab === "activity" && (
             <ActivityLog pdfs={pdfs} categories={categories} />
+          )}
+
+          {/* ── Power Tools ── */}
+          {activeTab === "tools" && (
+            <ToolsManager />
           )}
 
           {/* ── Settings ── */}

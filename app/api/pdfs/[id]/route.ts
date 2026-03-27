@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin"
 import { verifyAdminToken, extractToken } from "@/lib/admin-auth"
 import { NextResponse } from "next/server"
 
@@ -5,22 +6,20 @@ interface RouteProps {
   params: Promise<{ id: string }>
 }
 
-
 export async function PATCH(request: Request, { params }: RouteProps) {
   try {
-    if (!verifyToken(request)) {
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, category_id, file_path, file_size } = body
+    const { title, description, category_id, file_path, file_size, visibility, tags, allow_download } = body
 
     const supabase = createAdminClient()
 
-    // File replacement mode — no title required
+    // File replacement mode
     if (file_path) {
-      // Fetch current file_path to delete old file from storage
       const { data: current } = await supabase
         .from("pdfs")
         .select("file_path")
@@ -39,47 +38,40 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       if (title?.trim()) updatePayload.title = title.trim()
       if (description !== undefined) updatePayload.description = description?.trim() || null
       if (category_id !== undefined) updatePayload.category_id = category_id || null
+      if (visibility !== undefined) updatePayload.visibility = visibility
+      if (tags !== undefined) updatePayload.tags = Array.isArray(tags) && tags.length > 0 ? tags : null
+      if (allow_download !== undefined) updatePayload.allow_download = allow_download
 
-      const { data, error } = await supabase
-        .from("pdfs")
-        .update(updatePayload)
-        .eq("id", id)
-        .select()
-        .single()
-
-      if (error) {
-        console.error("[v0] PDF file-replace error:", error)
-        return NextResponse.json({ error: "Failed to replace file" }, { status: 500 })
-      }
-
+      const { data, error } = await supabase.from("pdfs").update(updatePayload).eq("id", id).select().single()
+      if (error) return NextResponse.json({ error: "Failed to replace file" }, { status: 500 })
       return NextResponse.json(data)
     }
 
     // Metadata-only update
-    if (!title?.trim()) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    const updatePayload: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
     }
 
-    const { data, error } = await supabase
-      .from("pdfs")
-      .update({
-        title: title.trim(),
-        description: description?.trim() || null,
-        category_id: category_id || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single()
+    if (title?.trim()) updatePayload.title = title.trim()
+    if (description !== undefined) updatePayload.description = description?.trim() || null
+    if (category_id !== undefined) updatePayload.category_id = category_id || null
+    if (visibility !== undefined) updatePayload.visibility = visibility
+    if (tags !== undefined) updatePayload.tags = Array.isArray(tags) && tags.length > 0 ? tags : null
+    if (allow_download !== undefined) updatePayload.allow_download = allow_download
 
+    if (Object.keys(updatePayload).length <= 1) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 })
+    }
+
+    const { data, error } = await supabase.from("pdfs").update(updatePayload).eq("id", id).select().single()
     if (error) {
-      console.error("[v0] PDF update error:", error)
+      console.error("[pdfs/id] PATCH error:", error)
       return NextResponse.json({ error: "Failed to update PDF" }, { status: 500 })
     }
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error("[v0] PDF PATCH error:", error)
+    console.error("[pdfs/id] PATCH error:", error)
     return NextResponse.json({ error: "An error occurred" }, { status: 500 })
   }
 }
@@ -88,47 +80,23 @@ export async function DELETE(request: Request, { params }: RouteProps) {
   try {
     const { id } = await params
 
-    if (!verifyToken(request)) {
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = createAdminClient()
 
-    // Get the PDF to find the file path
-    const { data: pdf, error: fetchError } = await supabase
-      .from("pdfs")
-      .select("file_path")
-      .eq("id", id)
-      .single()
+    const { data: pdf, error: fetchError } = await supabase.from("pdfs").select("file_path").eq("id", id).single()
+    if (fetchError || !pdf) return NextResponse.json({ error: "PDF not found" }, { status: 404 })
 
-    if (fetchError || !pdf) {
-      return NextResponse.json({ error: "PDF not found" }, { status: 404 })
-    }
+    await supabase.storage.from("pdfs").remove([pdf.file_path]).catch(() => {})
 
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from("pdfs")
-      .remove([pdf.file_path])
-
-    if (storageError) {
-      console.error("[v0] Storage delete error:", storageError)
-      // Continue to delete database record even if storage fails
-    }
-
-    // Delete from database
-    const { error: dbError } = await supabase
-      .from("pdfs")
-      .delete()
-      .eq("id", id)
-
-    if (dbError) {
-      console.error("[v0] Database delete error:", dbError)
-      return NextResponse.json({ error: "Failed to delete PDF" }, { status: 500 })
-    }
+    const { error: dbError } = await supabase.from("pdfs").delete().eq("id", id)
+    if (dbError) return NextResponse.json({ error: "Failed to delete PDF" }, { status: 500 })
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[v0] PDF DELETE error:", error)
+    console.error("[pdfs/id] DELETE error:", error)
     return NextResponse.json({ error: "An error occurred" }, { status: 500 })
   }
 }
