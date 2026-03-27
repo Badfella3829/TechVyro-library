@@ -53,6 +53,9 @@ export function SiteSettings() {
   const [saving, setSaving] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [webhookStatus, setWebhookStatus] = useState<"idle" | "loading" | "active" | "inactive">("idle")
+  const [webhookUrl, setWebhookUrl] = useState("")
+  const [webhookBot, setWebhookBot] = useState<{ username?: string; first_name?: string } | null>(null)
 
   const [settings, setSettings] = useState({
     siteName: "TechVyro",
@@ -127,6 +130,63 @@ export function SiteSettings() {
       })
       .catch(() => {})
   }, [])
+
+  async function checkWebhookStatus() {
+    setWebhookStatus("loading")
+    try {
+      const res = await fetch("/api/telegram/setup", { headers: adminHeaders() })
+      const data = await res.json()
+      if (data.ok && data.webhook?.url) {
+        setWebhookStatus("active")
+        setWebhookUrl(data.webhook.url)
+        setWebhookBot(data.bot || null)
+      } else {
+        setWebhookStatus("inactive")
+        setWebhookUrl("")
+        setWebhookBot(data.bot || null)
+      }
+    } catch {
+      setWebhookStatus("inactive")
+    }
+  }
+
+  async function activateWebhook() {
+    setWebhookStatus("loading")
+    try {
+      const res = await fetch("/api/telegram/setup", { method: "POST", headers: adminHeaders() })
+      const data = await res.json()
+      if (data.ok) {
+        setWebhookStatus("active")
+        setWebhookUrl(data.webhookUrl || "")
+        toast.success("Telegram Auto-Upload Bot activated!")
+      } else {
+        toast.error(data.error || "Failed to activate webhook")
+        setWebhookStatus("inactive")
+      }
+    } catch {
+      toast.error("Failed to activate webhook")
+      setWebhookStatus("inactive")
+    }
+  }
+
+  async function deactivateWebhook() {
+    setWebhookStatus("loading")
+    try {
+      const res = await fetch("/api/telegram/setup", { method: "DELETE", headers: adminHeaders() })
+      const data = await res.json()
+      if (data.ok) {
+        setWebhookStatus("inactive")
+        setWebhookUrl("")
+        toast.success("Telegram bot deactivated")
+      } else {
+        toast.error("Failed to deactivate")
+        setWebhookStatus("active")
+      }
+    } catch {
+      toast.error("Failed to deactivate")
+      setWebhookStatus("active")
+    }
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -923,6 +983,103 @@ export function SiteSettings() {
                   <p className="text-xs font-medium mb-1">🏆 Quiz Result Alert</p>
                   <p className="text-xs text-muted-foreground">Sent when a student completes a quiz — includes name, score, and percentage.</p>
                 </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Telegram Auto-Upload Bot */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Send className="h-4 w-4 text-violet-500" />
+                <h3 className="font-semibold text-sm">Telegram Auto-Upload Bot</h3>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-violet-500/10 text-violet-600">AI Powered</Badge>
+              </div>
+
+              <div className="p-4 rounded-lg bg-violet-500/8 border border-violet-500/20">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Send any PDF to your Telegram bot and it will <b>automatically upload</b> it to TechVyro —
+                  AI will detect the <b>title</b>, <b>category</b>, <b>description</b>, and <b>tags</b> from the filename.
+                  No manual data entry needed.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-2 text-xs">
+                <div className="p-3 rounded-lg border border-border/40 bg-muted/20 text-center">
+                  <div className="text-lg mb-1">📤</div>
+                  <p className="font-medium">Send PDF to Bot</p>
+                  <p className="text-muted-foreground mt-0.5">Via Telegram</p>
+                </div>
+                <div className="p-3 rounded-lg border border-border/40 bg-muted/20 text-center">
+                  <div className="text-lg mb-1">🤖</div>
+                  <p className="font-medium">AI Analyzes</p>
+                  <p className="text-muted-foreground mt-0.5">Title + Category + Tags</p>
+                </div>
+                <div className="p-3 rounded-lg border border-border/40 bg-muted/20 text-center">
+                  <div className="text-lg mb-1">✅</div>
+                  <p className="font-medium">Auto Published</p>
+                  <p className="text-muted-foreground mt-0.5">On TechVyro</p>
+                </div>
+              </div>
+
+              {webhookStatus === "active" && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 space-y-1">
+                  <p className="text-xs font-semibold text-green-700 dark:text-green-400 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-green-500 inline-block animate-pulse" />
+                    Bot is Active
+                    {webhookBot?.username && <span className="font-normal text-muted-foreground">— @{webhookBot.username}</span>}
+                  </p>
+                  {webhookUrl && (
+                    <p className="text-[10px] text-muted-foreground font-mono truncate">{webhookUrl}</p>
+                  )}
+                </div>
+              )}
+
+              {webhookStatus === "inactive" && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    ⚠️ Bot webhook is not active. Click <b>Activate Bot</b> to enable auto-upload.
+                    {webhookBot?.username && <span className="ml-1">Bot: @{webhookBot.username}</span>}
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                <b>Note:</b> Make sure your <code className="bg-muted px-1 rounded">TELEGRAM_BOT_TOKEN</code> and <b>Chat ID</b> above are configured before activating.
+                Only messages from your Chat ID will be processed (security).
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={checkWebhookStatus}
+                  disabled={webhookStatus === "loading"}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${webhookStatus === "loading" ? "animate-spin" : ""}`} />
+                  Check Status
+                </Button>
+                <Button
+                  size="sm"
+                  className="text-xs bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={activateWebhook}
+                  disabled={webhookStatus === "loading" || webhookStatus === "active"}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  Activate Bot
+                </Button>
+                {webhookStatus === "active" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                    onClick={deactivateWebhook}
+                    disabled={webhookStatus === "loading"}
+                  >
+                    Deactivate
+                  </Button>
+                )}
               </div>
             </div>
 
