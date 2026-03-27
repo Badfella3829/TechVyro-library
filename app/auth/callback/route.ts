@@ -8,12 +8,19 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code")
   const next = searchParams.get("next") ?? "/"
 
+  // Determine public-facing origin (Replit proxies via x-forwarded-host)
   const forwardedHost = request.headers.get("x-forwarded-host")
   const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https"
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  const publicOrigin = forwardedHost
-    ? `${forwardedProto}://${forwardedHost}`
-    : (siteUrl && origin.includes("localhost") ? siteUrl : origin)
+
+  let publicOrigin: string
+  if (forwardedHost) {
+    publicOrigin = `${forwardedProto}://${forwardedHost}`
+  } else if (siteUrl && !siteUrl.includes("localhost")) {
+    publicOrigin = siteUrl
+  } else {
+    publicOrigin = origin
+  }
 
   if (code) {
     const cookieStore = await cookies()

@@ -585,7 +585,9 @@ export function Header() {
           <ThemeToggle />
 
           {/* Auth button */}
-          {user ? (
+          {authLoading ? (
+            <div className="h-8 w-16 rounded-md bg-muted/40 animate-pulse" />
+          ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="px-2.5 sm:px-3 gap-1.5 border-primary/30 hover:bg-primary/5 hover:border-primary/50 transition-all">
