@@ -54,7 +54,7 @@ function PlayContent() {
   const apiBase = searchParams.get("apiBase") || ""
   const rawTitle = searchParams.get("title") || "Practice Test"
   const title = cleanTitle(rawTitle)
-  const platformName = searchParams.get("platform") || searchParams.get("seriesTitle") || "APX Mock Test"
+  const platformName = searchParams.get("platform") || searchParams.get("seriesTitle") || "TechVyro Mock Test"
   const duration = parseInt(searchParams.get("duration") || "60")
 
   const isSample = apiBase.startsWith("sample:")
@@ -120,7 +120,7 @@ function PlayContent() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -128,7 +128,7 @@ function PlayContent() {
   if (started && loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <div className="w-16 h-16 rounded-full border-4 border-violet-200 border-t-violet-600 animate-spin" />
+        <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
         <div className="text-center">
           <p className="font-semibold text-lg">Loading Questions...</p>
           <p className="text-sm text-muted-foreground mt-1">Fetching from {platformName}</p>
@@ -141,8 +141,8 @@ function PlayContent() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
         <div className="max-w-md w-full text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="h-8 w-8 text-red-500" />
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="h-8 w-8 text-destructive" />
           </div>
           <h2 className="text-xl font-bold mb-2">Could Not Load Test</h2>
           <p className="text-muted-foreground mb-6 text-sm">{error}</p>
@@ -150,7 +150,7 @@ function PlayContent() {
             <Button variant="outline" onClick={() => { setStarted(false); setError("") }} className="gap-2">
               <ArrowLeft className="h-4 w-4" /> Go Back
             </Button>
-            <Button onClick={() => { setError(""); handleStart() }} className="bg-violet-600 hover:bg-violet-700 gap-2">
+            <Button onClick={() => { setError(""); handleStart() }} className="bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 gap-2">
               <RefreshCw className="h-4 w-4" /> Retry
             </Button>
           </div>
@@ -175,7 +175,7 @@ function PlayContent() {
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate">{title}</p>
             </div>
-            <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hidden sm:flex gap-1">
+            <Badge className="text-[10px] bg-primary/10 text-primary border-primary/30 hidden sm:flex gap-1">
               <Shield className="h-2.5 w-2.5" /> TechVyro
             </Badge>
             <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-8 w-8 shrink-0">
@@ -224,31 +224,37 @@ function PlayContent() {
       <div className="flex-1 flex items-center justify-center p-4 py-10">
         <div className="w-full max-w-lg">
           {/* Hero */}
-          <div className="bg-gradient-to-br from-violet-600 via-violet-700 to-indigo-800 rounded-2xl p-8 text-white text-center mb-6 shadow-2xl">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
-              <Trophy className="h-8 w-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2 leading-snug">{title}</h1>
-            <p className="text-violet-200 text-sm mb-5">{platformName}</p>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 text-sm">
-                <Clock className="h-4 w-4" /> {duration} min
+          <div className="bg-gradient-to-br from-primary via-primary/90 to-accent rounded-2xl p-8 text-white text-center mb-6 shadow-2xl relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+            
+            <div className="relative z-10">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
+                <Trophy className="h-8 w-8 text-white" />
               </div>
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 text-sm">
-                <FileText className="h-4 w-4" /> MCQ Format
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 text-sm">
-                <CheckCircle2 className="h-4 w-4" /> Auto Graded
+              <h1 className="text-2xl font-bold mb-2 leading-snug">{title}</h1>
+              <p className="text-white/80 text-sm mb-5">{platformName}</p>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 text-sm">
+                  <Clock className="h-4 w-4" /> {duration} min
+                </div>
+                <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 text-sm">
+                  <FileText className="h-4 w-4" /> MCQ Format
+                </div>
+                <div className="flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1.5 text-sm">
+                  <CheckCircle2 className="h-4 w-4" /> Auto Graded
+                </div>
               </div>
             </div>
           </div>
 
           {/* Instructions */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 space-y-2">
-            <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 mb-5 space-y-2">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
               <AlertCircle className="h-4 w-4" /> Instructions
             </p>
-            <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+            <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
               <li>Read each question carefully before answering</li>
               <li>Timer starts immediately when you click &quot;Start Test&quot;</li>
               <li>Do not refresh the page during the test</li>
@@ -259,16 +265,16 @@ function PlayContent() {
           {/* Login gate or Start */}
           {!user && !isSample ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4">
-                <Lock className="h-5 w-5 text-violet-500 shrink-0" />
+              <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <Lock className="h-5 w-5 text-primary shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-violet-800">Login Required</p>
-                  <p className="text-xs text-violet-600">Sign in to attempt tests and save your progress</p>
+                  <p className="text-sm font-semibold text-foreground">Login Required</p>
+                  <p className="text-xs text-muted-foreground">Sign in to attempt tests and save your progress</p>
                 </div>
               </div>
               <Button
                 onClick={() => setShowAuthModal(true)}
-                className="w-full h-12 text-base font-semibold bg-violet-600 hover:bg-violet-700 gap-2"
+                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 gap-2"
               >
                 <Lock className="h-5 w-5" />
                 Login to Start Test
@@ -278,7 +284,7 @@ function PlayContent() {
             <Button
               onClick={handleStart}
               disabled={loading}
-              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 gap-2 shadow-lg"
+              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 gap-2 shadow-lg"
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />}
               {loading ? "Loading Questions..." : "Start Test Now"}
@@ -286,7 +292,7 @@ function PlayContent() {
           )}
 
           <p className="text-center text-xs text-muted-foreground mt-4">
-            All tests run inside TechVyro — no external websites
+            All tests run inside TechVyro - no external websites
           </p>
         </div>
       </div>
@@ -298,7 +304,7 @@ export default function PlayPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     }>
       <PlayContent />
