@@ -54,7 +54,7 @@ function PlayContent() {
   const apiBase = searchParams.get("apiBase") || ""
   const rawTitle = searchParams.get("title") || "Practice Test"
   const title = cleanTitle(rawTitle)
-  const platformName = searchParams.get("platform") || searchParams.get("seriesTitle") || "APX Mock Test"
+  const platformName = searchParams.get("platform") || searchParams.get("seriesTitle") || "TechVyro Mock Test"
   const duration = parseInt(searchParams.get("duration") || "60")
 
   const isSample = apiBase.startsWith("sample:")

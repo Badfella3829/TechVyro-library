@@ -280,8 +280,8 @@ export default function TestSeriesPage() {
       testId:      test.slug || test.id,
       apiBase:     test._sourceApi || `sample:${test.category || "ssc"}`,
       title:       test.title,
-      seriesTitle: test._platformName || "APX Mock Test",
-      platform:    test._platformName || "APX",
+      seriesTitle: test._platformName || "TechVyro Mock Test",
+      platform:    test._platformName || "TechVyro",
       duration:    String(test.duration || 60),
     })
     router.push(`/test-series/play?${params}`)
@@ -481,7 +481,7 @@ export default function TestSeriesPage() {
 
             {/* Title */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4 leading-[1.1]">
-              <span className="text-foreground">APX </span>
+              <span className="text-foreground">TechVyro </span>
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Mock Test Portal
               </span>
@@ -497,7 +497,7 @@ export default function TestSeriesPage() {
             <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
               {[
                 { icon: Trophy,       label: "Free Mock Tests",                    color: "text-amber-500", bg: "bg-amber-500/10" },
-                { icon: Zap,          label: liveCount > 0 ? `${liveCount} Live` : "Live APX", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                { icon: Zap,          label: liveCount > 0 ? `${liveCount} Live` : "Live Tests", color: "text-emerald-500", bg: "bg-emerald-500/10" },
                 { icon: CheckCircle,  label: "Auto-Graded",                        color: "text-blue-500", bg: "bg-blue-500/10" },
                 { icon: Users,        label: "No Login for Samples",               color: "text-rose-500", bg: "bg-rose-500/10" },
               ].map(({ icon: Ic, label, color, bg }) => (
@@ -777,7 +777,7 @@ export default function TestSeriesPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    Fetching live mock tests from APX platforms...
+                    Fetching live mock tests from TechVyro platforms...
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {Array.from({ length: 16 }).map((_, i) => <SkeletonCard key={i} />)}
