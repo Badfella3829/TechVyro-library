@@ -2,6 +2,42 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { BookOpen, Users, Shield, Zap, Mail, Globe, MessageCircle, Star } from "lucide-react"
 import Link from "next/link"
+import { TestimonialCarousel } from "@/components/ui/testimonial-carousel"
+
+const TESTIMONIAL_DATA = [
+  {
+    id: 1,
+    name: "Rahul Sharma",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces",
+    description: "TechVyro took my NDA preparation to the next level. The notes are so clear that I remember everything!",
+    course: "NDA Aspirant",
+    rating: 5,
+  },
+  {
+    id: 2,
+    name: "Priya Patel",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces",
+    description: "Found notes for all engineering subjects in one place. Perfect resource for revision before exams!",
+    course: "B.Tech Student",
+    rating: 5,
+  },
+  {
+    id: 3,
+    name: "Amit Kumar",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces",
+    description: "Previous year papers and solutions all for free! I cleared 3 competitive exams using TechVyro.",
+    course: "SSC Aspirant",
+    rating: 5,
+  },
+  {
+    id: 4,
+    name: "Sneha Reddy",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=faces",
+    description: "Biology and Chemistry notes are very detailed. The diagrams are so clear that concepts are easy to understand!",
+    course: "NEET Aspirant",
+    rating: 5,
+  },
+]
 
 export const metadata = {
   title: "About Us - TechVyro PDF Library",
@@ -141,8 +177,28 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Contact */}
+        {/* Testimonials Carousel */}
         <section className="py-16 sm:py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-semibold mb-4">
+                <Star className="h-3 w-3 fill-current" />
+                Student Reviews
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-3">What Students Say</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Swipe through reviews from students who trust TechVyro
+              </p>
+            </div>
+            <TestimonialCarousel 
+              testimonials={TESTIMONIAL_DATA}
+              className="max-w-2xl mx-auto"
+            />
+          </div>
+        </section>
+
+        {/* Contact */}
+        <section className="py-16 sm:py-20 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-2xl mx-auto">
               <div className="text-center mb-10">
