@@ -49,6 +49,12 @@ function PlayContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const [localUser, setLocalUser] = useState(user)
+
+  // Update local user state when auth changes
+  useEffect(() => {
+    setLocalUser(user)
+  }, [user])
 
   const testId = searchParams.get("testId") || ""
   const apiBase = searchParams.get("apiBase") || ""
@@ -95,7 +101,7 @@ function PlayContent() {
   }
 
   const handleStart = async () => {
-    if (!user && !isSample) { setShowAuthModal(true); return }
+    if (!localUser && !isSample) { setShowAuthModal(true); return }
     recordAttempt(testId)
     await fetchQuestions()
     setStarted(true)
@@ -111,10 +117,10 @@ function PlayContent() {
     }
   }
 
-  const userName = user
-    ? (user.user_metadata?.full_name as string | undefined)
-      || (user.user_metadata?.name as string | undefined)
-      || user.email?.split("@")[0] || ""
+  const userName = localUser
+    ? (localUser.user_metadata?.full_name as string | undefined)
+      || (localUser.user_metadata?.name as string | undefined)
+      || localUser.email?.split("@")[0] || ""
     : "Guest"
 
   if (authLoading) {
@@ -196,7 +202,11 @@ function PlayContent() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
+        <AuthModal onClose={() => {
+          setShowAuthModal(false)
+          // Force refresh auth state
+          router.refresh()
+        }} />
       )}
 
       {/* Top bar */}
@@ -263,7 +273,7 @@ function PlayContent() {
           </div>
 
           {/* Login gate or Start */}
-          {!user && !isSample ? (
+          {!localUser && !isSample ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
                 <Lock className="h-5 w-5 text-primary shrink-0" />
