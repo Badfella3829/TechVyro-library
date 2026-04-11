@@ -532,9 +532,14 @@ export function getAllSampleSeries(): SampleSeries[] {
 
 // Get sample questions for a test ID
 export function getSampleQuestions(testId: string): SampleQuestion[] | null {
-  for (const series of SAMPLE_SERIES) {
+  // Search in both SAMPLE_SERIES and ADDITIONAL_SERIES
+  const allSeries = [...SAMPLE_SERIES, ...ADDITIONAL_SERIES]
+  for (const series of allSeries) {
     for (const test of series.tests) {
-      if (test.id === testId) return test.questions
+      if (test.id === testId) {
+        // Return questions if available, otherwise return null to trigger fallback
+        return test.questions && test.questions.length > 0 ? test.questions : null
+      }
     }
   }
   return null
