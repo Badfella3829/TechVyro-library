@@ -67,6 +67,11 @@ export function Footer() {
     { name: "Main Website", href: s.mainWebsite, external: true },
   ]
 
+  const legalLinks = [
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
+  ]
+
   return (
     <footer className="relative border-t border-border/40 bg-gradient-to-b from-background to-muted/30">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(120,80,200,0.05),transparent)] pointer-events-none" />
@@ -204,10 +209,21 @@ export function Footer() {
             </span>
             <span className="hidden sm:inline">All rights reserved.</span>
           </p>
-          <p className="flex items-center gap-2 text-[10px] sm:text-xs">
-            <Heart className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ef4444] fill-[#ef4444]" />
-            Made with care for education
-          </p>
+          <div className="flex items-center gap-4">
+            {legalLinks.map((link, index) => (
+              <Link 
+                key={link.name}
+                href={link.href}
+                className="hover:text-primary transition-colors"
+              >
+                {link.name}
+              </Link>
+            ))}
+            <span className="hidden sm:flex items-center gap-2 text-[10px] sm:text-xs">
+              <Heart className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ef4444] fill-[#ef4444]" />
+              Made with care
+            </span>
+          </div>
         </div>
       </div>
     </footer>
