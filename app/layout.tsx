@@ -25,7 +25,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'TechVyro - Free PDF Library | NDA Notes, Study Materials & Educational PDFs',
   description: 'Download free NDA PDFs, study notes, previous year papers & educational materials. 10,000+ students trust TechVyro for quality PDFs - CBSE, Engineering, Medical & Competitive Exams.',
-  generator: 'v0.app',
   keywords: [
     'TechVyro', 'Free PDF Download', 'NDA Notes PDF', 'Free Study Material',
     'CBSE Notes PDF', 'Engineering Notes', 'Medical Notes PDF', 'Previous Year Papers',
@@ -54,12 +53,21 @@ export const metadata: Metadata = {
     siteName: 'TechVyro PDF Library',
     type: 'website',
     locale: 'en_IN',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'TechVyro - Free PDF Library for Study Materials & Notes',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TechVyro - Free PDF Library | NDA Notes & Study Materials',
     description: 'Download free NDA PDFs, study notes & educational materials. Trusted by 10,000+ students.',
     creator: '@techvyro',
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: 'https://www.techvyro.in/',
@@ -93,7 +101,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en-IN" suppressHydrationWarning>
       <head>
         <meta name="google-adsense-account" content="ca-pub-6111784142192967" />
       </head>
