@@ -101,7 +101,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en-IN" suppressHydrationWarning>
       <head>
         <meta name="google-adsense-account" content="ca-pub-6111784142192967" />
       </head>
