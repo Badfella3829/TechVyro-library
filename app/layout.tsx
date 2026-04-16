@@ -25,7 +25,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'TechVyro - Free PDF Library | NDA Notes, Study Materials & Educational PDFs',
   description: 'Download free NDA PDFs, study notes, previous year papers & educational materials. 10,000+ students trust TechVyro for quality PDFs - CBSE, Engineering, Medical & Competitive Exams.',
-  generator: 'v0.app',
   keywords: [
     'TechVyro', 'Free PDF Download', 'NDA Notes PDF', 'Free Study Material',
     'CBSE Notes PDF', 'Engineering Notes', 'Medical Notes PDF', 'Previous Year Papers',
