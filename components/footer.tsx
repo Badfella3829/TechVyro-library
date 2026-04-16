@@ -207,7 +207,7 @@ export function Footer() {
               <span className="text-[#ef4444]">{s.siteName.slice(0, 4)}</span>
               <span className="text-foreground">{s.siteName.slice(4)}</span>
             </span>
-            <span className="hidden sm:inline">All rights reserved.</span>
+            <span>All rights reserved.</span>
           </p>
           <div className="flex items-center gap-4">
             {legalLinks.map((link, index) => (
