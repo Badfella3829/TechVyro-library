@@ -1,18 +1,17 @@
 import { verifyAdminToken, extractToken } from "@/lib/admin-auth"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 
 interface RouteProps {
   params: Promise<{ id: string }>
 }
 
-// Helper to verify admin token
-
 // Update category (rename, change color)
 export async function PATCH(request: Request, { params }: RouteProps) {
   try {
     const { id } = await params
-    
-    if (!verifyAdminToken(request)) {
+
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -24,7 +23,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     }
 
     const supabase = createAdminClient()
-    
+
     const updateData: { name?: string; color?: string; slug?: string } = {}
     if (name) {
       updateData.name = name
@@ -33,7 +32,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     if (color) {
       updateData.color = color
     }
-    
+
     const { data, error } = await supabase
       .from("categories")
       .update(updateData)
@@ -56,13 +55,13 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 export async function DELETE(request: Request, { params }: RouteProps) {
   try {
     const { id } = await params
-    
-    if (!verifyAdminToken(request)) {
+
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = createAdminClient()
-    
+
     const { error } = await supabase
       .from("categories")
       .delete()
