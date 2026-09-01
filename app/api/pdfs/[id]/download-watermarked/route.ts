@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
+import { PDFDocument, degrees, rgb, StandardFonts } from "pdf-lib"
 
 interface RouteProps {
   params: Promise<{ id: string }>
@@ -67,7 +67,7 @@ export async function GET(request: Request, { params }: RouteProps) {
         font: helveticaFont,
         color: rgb(0.7, 0.7, 0.7),
         opacity: 0.3,
-        rotate: { type: 'degrees', angle: -45 } as const,
+        rotate: degrees(-45),
       })
 
       // Draw smaller watermarks in corners
@@ -115,7 +115,7 @@ export async function GET(request: Request, { params }: RouteProps) {
     const filename = `${safeFilename}_TechVyro.pdf`
 
     // Return the watermarked PDF
-    return new NextResponse(watermarkedPdfBytes, {
+    return new NextResponse(Buffer.from(watermarkedPdfBytes), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,

@@ -78,10 +78,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const slug = searchParams.get("slug")
   const apiBase = searchParams.get("apiBase")
-  const webBase = searchParams.get("webBase")
+  const webBase = searchParams.get("webBase") || apiBase
 
-  if (!slug || !apiBase) {
-    return NextResponse.json({ error: "slug and apiBase required" }, { status: 400 })
+  if (!slug || !apiBase || !webBase) {
+  return NextResponse.json({ error: "slug, apiBase, and webBase required" }, { status: 400 })
   }
 
   // Handle sample series (lazy loaded)

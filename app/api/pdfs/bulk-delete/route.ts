@@ -1,10 +1,11 @@
 import { verifyAdminToken, extractToken } from "@/lib/admin-auth"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 
 
 export async function POST(request: Request) {
   try {
-    if (!verifyToken(request)) {
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

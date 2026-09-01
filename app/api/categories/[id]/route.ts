@@ -1,4 +1,5 @@
 import { verifyAdminToken, extractToken } from "@/lib/admin-auth"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 
 interface RouteProps {
@@ -12,7 +13,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   try {
     const { id } = await params
     
-    if (!verifyAdminToken(request)) {
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -57,7 +58,7 @@ export async function DELETE(request: Request, { params }: RouteProps) {
   try {
     const { id } = await params
     
-    if (!verifyAdminToken(request)) {
+    if (!verifyAdminToken(extractToken(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
